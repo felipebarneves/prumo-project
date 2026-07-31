@@ -1,16 +1,16 @@
-# SaaS-Projects
+# prumo-project
 
 Monorepo do projeto Prumo, organizado para suportar frontend, backend, bibliotecas compartilhadas, infraestrutura de banco e automações de CI/CD.
 
 ## Estrutura do repositório
 
 ```text
-SaaS-Projetcs/
+prumo-project/
 ├── .claude/                   # Prompts de sistema dos agentes
-├── DOCS/                      # Artefatos e handoffs gerados
-│   ├── PRD/
-│   ├── ARCHITECTURE/
-│   └── QA/
+├── docs/                      # Artefatos e handoffs gerados
+│   ├── prd/
+│   ├── architecture/
+│   └── qa/
 ├── apps/                      # Aplicações principais
 │   ├── web/                   # Frontend Next.js
 │   └── api/                   # Backend FastAPI
@@ -38,7 +38,7 @@ Este monorepo centraliza:
 
 - `apps/` contém aplicações executáveis.
 - `packages/` contém código compartilhado entre apps.
-- `DOCS/` armazena documentos e handoffs produzidos durante o desenvolvimento.
+- `docs/` armazena documentos e handoffs produzidos durante o desenvolvimento.
 - `supabase/` concentra migrations e seed de banco.
 - `.github/workflows/` contém automações do repositório.
 - `.claude/` concentra prompts e definições operacionais dos agentes.
@@ -47,8 +47,8 @@ Este monorepo centraliza:
 
 ### 1. Clonar o repositório
 ```bash
-git clone https://github.com/felipebarneves/SaaS-Projects.git
-cd SaaS-Projects
+git clone https://github.com/felipebarneves/prumo-project.git
+cd prumo-project
 ```
 
 ### 2. Configurar variáveis de ambiente
