@@ -1,0 +1,13 @@
+{
+  "name": "prumo-project",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
+    "start:web": "pnpm --filter web start",
+    "lint:web": "pnpm --filter web lint",
+    "dev:api": "python -m uvicorn apps.api.app.main:app --reload --host 127.0.0.1 --port 8000",
+    "dev": "pnpm dev:web"
+  }
+}

@@ -1,0 +1,1 @@
+export type ModuloPrumo = "viabilidade" | "precificacao" | "gestao";
