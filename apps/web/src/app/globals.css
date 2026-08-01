@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Cores do Brand Identity Neves Soluções */
+    --bg: #07111F;
+    --bg-card: #0B1929;
+    --bg-glass: rgba(11, 25, 41, 0.65);
+    
+    --gold-1: #C8883A;
+    --gold-2: #E8A855;
+    --gold-grad: linear-gradient(135deg, #C8883A 0%, #E8A855 100%);
+    
+    --silver: #A8B4C0;
+    --white: #EDF1F5;
+    
+    --border: rgba(168, 180, 192, 0.09);
+    --border-gold: rgba(200, 136, 58, 0.22);
+    --glow-gold: rgba(200, 136, 58, 0.07);
+
+    /* Radii */
+    --radius: 8px;
+    --radius-lg: 14px;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--silver);
+    font-family: 'DM Sans', sans-serif;
+    line-height: 1.65;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--white);
+    letter-spacing: -0.02em;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Utilitários de Marca (Gradientes e Buttons) */
+.text-gold-gradient {
+  background: var(--gold-grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-solid {
+  background: var(--gold-grad);
+  color: var(--bg);
+  font-weight: 600;
+  border-radius: var(--radius);
+  transition: all 0.28s ease;
+}
+
+.btn-solid:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 4px 20px rgba(200, 136, 58, 0.25);
+  transform: translateY(-2px);
+}
+
+.card-neves {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: all 0.28s ease;
+}
+
+.card-neves:hover {
+  border-color: var(--border-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(7, 17, 31, 0.8);
 }
