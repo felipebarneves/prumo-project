@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 @layer base {
   :root {
@@ -6,14 +10,14 @@
     --bg: #07111F;
     --bg-card: #0B1929;
     --bg-glass: rgba(11, 25, 41, 0.65);
-    
+
     --gold-1: #C8883A;
     --gold-2: #E8A855;
     --gold-grad: linear-gradient(135deg, #C8883A 0%, #E8A855 100%);
-    
+
     --silver: #A8B4C0;
     --white: #EDF1F5;
-    
+
     --border: rgba(168, 180, 192, 0.09);
     --border-gold: rgba(200, 136, 58, 0.22);
     --glow-gold: rgba(200, 136, 58, 0.07);
@@ -24,20 +28,25 @@
   }
 
   body {
-    background-color: var(--bg);
-    color: var(--silver);
-    font-family: 'DM Sans', sans-serif;
+    font-family: var(--font-body), sans-serif;
     line-height: 1.65;
+    @apply bg-background text-foreground;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-display), sans-serif;
     color: var(--white);
     letter-spacing: -0.02em;
   }
 
   code, pre, .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono), monospace;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
@@ -73,4 +82,97 @@
   border-color: var(--border-gold);
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(7, 17, 31, 0.8);
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Prumo é Dark First por decisão de arquitetura (brand-identity.md, seção 8:
+ * "Sem fundos claros/brancos como base"). Os tokens semânticos do shadcn/ui
+ * abaixo mapeiam diretamente para a paleta da marca — :root e .dark carregam
+ * os MESMOS valores (dark é o único tema suportado nesta entrega; o toggle
+ * claro/escuro da Tela 9 é responsabilidade de uma iteração futura).
+ */
+:root,
+.dark {
+  --background: var(--bg);
+  --foreground: var(--white);
+  --card: var(--bg-card);
+  --card-foreground: var(--white);
+  --popover: var(--bg-card);
+  --popover-foreground: var(--white);
+  --primary: var(--gold-1);
+  --primary-foreground: var(--bg);
+  --secondary: rgba(255, 255, 255, 0.04);
+  --secondary-foreground: var(--white);
+  --muted: rgba(255, 255, 255, 0.03);
+  --muted-foreground: var(--silver);
+  --accent: var(--glow-gold);
+  --accent-foreground: var(--gold-1);
+  --destructive: #e5484d;
+  --destructive-foreground: var(--white);
+  --border: var(--border);
+  --input: rgba(168, 180, 192, 0.16);
+  --ring: var(--gold-1);
+  --chart-1: var(--gold-1);
+  --chart-2: var(--gold-2);
+  --chart-3: var(--silver);
+  --chart-4: #6b7d8f;
+  --chart-5: #3d4b58;
+  --radius: 0.5rem;
+  --sidebar: var(--bg-card);
+  --sidebar-foreground: var(--white);
+  --sidebar-primary: var(--gold-1);
+  --sidebar-primary-foreground: var(--bg);
+  --sidebar-accent: var(--glow-gold);
+  --sidebar-accent-foreground: var(--gold-1);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--gold-1);
+}
+
+/* Sobrescrita final: cards/boxes usam o radius grande da marca (14px), não a
+   escala derivada de --radius (8px) que o @theme inline aplica a --radius-lg. */
+:root {
+  --radius-lg: 14px;
 }
