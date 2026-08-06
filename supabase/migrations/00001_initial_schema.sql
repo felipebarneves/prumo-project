@@ -1,8 +1,12 @@
 -- 1. Enum para os Papéis na Organização
-CREATE TYPE public.organization_role AS ENUM ('owner', 'admin', 'executor', 'viewer');
+DO $$ BEGIN
+    CREATE TYPE public.organization_role AS ENUM ('owner', 'admin', 'executor', 'viewer');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 2. Tabela de Organizações (PMEs)
-CREATE TABLE public.organizations (
+CREATE TABLE IF NOT EXISTS public.organizations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     document_id TEXT, -- CNPJ
@@ -10,7 +14,7 @@ CREATE TABLE public.organizations (
 );
 
 -- 3. Tabela de Perfis de Usuários (Vinculado ao Auth do Supabase)
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
     avatar_url TEXT,
@@ -18,7 +22,7 @@ CREATE TABLE public.profiles (
 );
 
 -- 4. Associação Usuário <-> Organização (Com Roles e Módulos Ativos)
-CREATE TABLE public.organization_members (
+CREATE TABLE IF NOT EXISTS public.organization_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -36,6 +40,7 @@ ALTER TABLE public.organization_members ENABLE ROW LEVEL SECURITY;
 -- 6. Políticas Base de RLS
 
 -- Usuário só lê a organização se for membro dela
+DROP POLICY IF EXISTS "Membros podem ver suas organizações" ON public.organizations;
 CREATE POLICY "Membros podem ver suas organizações" 
 ON public.organizations FOR SELECT 
 USING (
@@ -47,6 +52,7 @@ USING (
 );
 
 -- Apenas Owner e Admin podem alterar dados da organização
+DROP POLICY IF EXISTS "Apenas Admin/Owner altera organização" ON public.organizations;
 CREATE POLICY "Apenas Admin/Owner altera organização" 
 ON public.organizations FOR UPDATE 
 USING (

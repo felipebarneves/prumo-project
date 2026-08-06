@@ -1,18 +1,24 @@
 -- =============================================================================
 -- Módulo: Prumo Viabilidade
--- Baseado em: docs/prd/prd-viabilidade.md
+-- Baseado em: docs/prd/viabilidade/01-database-schema.md
 -- Depende de: 00001_initial_schema.sql (organizations, profiles, organization_members)
 --             00002_stripe_schema.sql (subscription_status em organizations)
+-- Idempotente: CREATE TYPE envolvido em DO/EXCEPTION (duplicate_object) para permitir
+-- reexecução segura após falha parcial — nenhum dos 8 tipos abaixo é criado em 00001/00002.
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
 -- 1. ESTRUTURA COMERCIAL (PRD seção 3.1)
 -- -----------------------------------------------------------------------------
 
-CREATE TYPE public.plan_tier AS ENUM ('starter', 'pro_planejamento', 'pro_execucao', 'master');
+DO $$ BEGIN
+    CREATE TYPE public.plan_tier AS ENUM ('starter', 'pro_planejamento', 'pro_execucao', 'master');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Capacidade por tier — tabela de referência estática (seed abaixo), não editável via API.
-CREATE TABLE public.plan_capacities (
+CREATE TABLE IF NOT EXISTS public.plan_capacities (
     tier public.plan_tier PRIMARY KEY,
     max_executors INTEGER NOT NULL,
     max_viewers INTEGER NOT NULL,
@@ -24,6 +30,7 @@ INSERT INTO public.plan_capacities (tier, max_executors, max_viewers, max_active
     ('pro_planejamento', 2, 3, 12),
     ('pro_execucao', 2, 4, 15),
     ('master', 3, 7, 25);
+ON CONFLICT (tier) DO NOTHING;
 
 ALTER TABLE public.organizations
     ADD COLUMN IF NOT EXISTS plan_tier public.plan_tier NOT NULL DEFAULT 'starter';
@@ -38,9 +45,13 @@ COMMENT ON TABLE public.plan_capacities IS 'Referência estática de capacidade 
 -- 2. CONVITES DE USUÁRIO (PRD Tela 9, seção 3.10 / Tela 10, seção 3.11)
 -- -----------------------------------------------------------------------------
 
-CREATE TYPE public.invite_status AS ENUM ('pendente', 'aceito', 'expirado', 'cancelado');
+DO $$ BEGIN
+    CREATE TYPE public.invite_status AS ENUM ('pendente', 'aceito', 'expirado', 'cancelado');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE public.organization_invites (
+CREATE TABLE IF NOT EXISTS public.organization_invites (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
@@ -55,12 +66,16 @@ CREATE TABLE public.organization_invites (
     UNIQUE (organization_id, email, status) DEFERRABLE INITIALLY IMMEDIATE
 );
 
-CREATE UNIQUE INDEX idx_organization_invites_token ON public.organization_invites(token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_organization_invites_token ON public.organization_invites(token);
 
 COMMENT ON TABLE public.organization_invites IS 'Convite só conta no limite de Usuários do plano após status = aceito (PRD US-J1, US-K3).';
 
 -- Preferência de tema (PRD Tela 9, seção 3.10) — por usuário, não por organização.
-CREATE TYPE public.theme_preference AS ENUM ('claro', 'escuro');
+DO $$ BEGIN
+    CREATE TYPE public.theme_preference AS ENUM ('claro', 'escuro');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 ALTER TABLE public.profiles
     ADD COLUMN IF NOT EXISTS theme_preference public.theme_preference NOT NULL DEFAULT 'escuro';
@@ -69,18 +84,30 @@ ALTER TABLE public.profiles
 -- 3. CONTRATO MESTRE (PRD Tela 1, seção 3.2)
 -- -----------------------------------------------------------------------------
 
-CREATE TYPE public.regime_tributario AS ENUM ('lucro_presumido', 'lucro_real');
+DO $$ BEGIN
+    CREATE TYPE public.regime_tributario AS ENUM ('lucro_presumido', 'lucro_real');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE public.status_ciclo_vida AS ENUM (
-    'em_prospeccao', 'contrato_assinado', 'em_execucao', 'encerrado', 'cancelado'
-);
+DO $$ BEGIN
+    CREATE TYPE public.status_ciclo_vida AS ENUM (
+        'em_prospeccao', 'contrato_assinado', 'em_execucao', 'encerrado', 'cancelado'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TYPE public.modulo_prumo AS ENUM ('precificacao', 'viabilidade', 'gestao');
+DO $$ BEGIN
+    CREATE TYPE public.modulo_prumo AS ENUM ('precificacao', 'viabilidade', 'gestao');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Entidade compartilhada entre os 3 módulos do Prumo. Este schema é o dono de
 -- registro (source of truth) da entidade contrato_id mestre — Precificação e
 -- Gestão, quando implementados, referenciam este mesmo id.
-CREATE TABLE public.contratos (
+CREATE TABLE IF NOT EXISTS public.contratos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
     nome_projeto TEXT NOT NULL,
@@ -100,8 +127,8 @@ CREATE TABLE public.contratos (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_contratos_organization_id ON public.contratos(organization_id);
-CREATE INDEX idx_contratos_org_arquivado ON public.contratos(organization_id, arquivado_em);
+CREATE INDEX IF NOT EXISTS idx_contratos_organization_id ON public.contratos(organization_id);
+CREATE INDEX IF NOT EXISTS idx_contratos_org_arquivado ON public.contratos(organization_id, arquivado_em);
 
 COMMENT ON COLUMN public.contratos.regime_tributario IS 'Imutável após criação (PRD 3.2) — enforce no FastAPI, não editável em nenhum endpoint de update.';
 COMMENT ON COLUMN public.contratos.arquivado_em IS 'NULL = ativo (conta no limite do tier). Preenchido = arquivado (fora da contagem, leitura preservada). Distinto de exclusão permanente (DELETE).';
@@ -109,7 +136,7 @@ COMMENT ON COLUMN public.contratos.arquivado_em IS 'NULL = ativo (conta no limit
 -- Vínculo entre módulos adjacentes na cadeia Precificação <-> Viabilidade <-> Gestão.
 -- Guarda apenas a referência de vínculo; a importação por cópia das linhas ocorre
 -- em linhas_receita/linhas_custo via origem_line_id no momento em que o vínculo é criado.
-CREATE TABLE public.contrato_modulo_vinculos (
+CREATE TABLE IF NOT EXISTS public.contrato_modulo_vinculos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     contrato_id UUID NOT NULL REFERENCES public.contratos(id) ON DELETE CASCADE,
     modulo public.modulo_prumo NOT NULL CHECK (modulo IN ('precificacao', 'gestao')),
@@ -120,7 +147,7 @@ CREATE TABLE public.contrato_modulo_vinculos (
     UNIQUE (contrato_id, modulo)
 );
 
-CREATE INDEX idx_contrato_modulo_vinculos_contrato_id ON public.contrato_modulo_vinculos(contrato_id);
+CREATE INDEX IF NOT EXISTS idx_contrato_modulo_vinculos_contrato_id ON public.contrato_modulo_vinculos(contrato_id);
 
 COMMENT ON TABLE public.contrato_modulo_vinculos IS 'Vínculo 1:1 por par adjacente na cadeia (PRD 1.3). Desvincular preenche desvinculado_em em vez de excluir a linha (auditoria).';
 
@@ -129,7 +156,7 @@ COMMENT ON TABLE public.contrato_modulo_vinculos IS 'Vínculo 1:1 por par adjace
 --    transversal de todo o schema das seções 5 a 8 abaixo.
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE public.versoes (
+CREATE TABLE IF NOT EXISTS public.versoes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     contrato_id UUID NOT NULL REFERENCES public.contratos(id) ON DELETE CASCADE,
     nome_versao TEXT NOT NULL,
@@ -139,7 +166,7 @@ CREATE TABLE public.versoes (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_versoes_contrato_id ON public.versoes(contrato_id);
+CREATE INDEX IF NOT EXISTS idx_versoes_contrato_id ON public.versoes(contrato_id);
 
 COMMENT ON TABLE public.versoes IS 'Sem versão principal/ativa marcada — a mais recente por created_at abre por padrão (PRD 3.8). Exclusão bloqueada no FastAPI se for a última versão do contrato.';
 
@@ -147,7 +174,7 @@ COMMENT ON TABLE public.versoes IS 'Sem versão principal/ativa marcada — a ma
 -- 5. PARÂMETROS GERAIS DA VERSÃO (PRD Tela 2, seção 3.3)
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE public.parametros_versao (
+CREATE TABLE IF NOT EXISTS public.parametros_versao (
     versao_id UUID PRIMARY KEY REFERENCES public.versoes(id) ON DELETE CASCADE,
     aliquota_tributaria_efetiva NUMERIC(7, 4) NOT NULL CHECK (aliquota_tributaria_efetiva >= 0),
     tma NUMERIC(7, 4) CHECK (tma IS NULL OR tma >= 0),
@@ -164,7 +191,7 @@ COMMENT ON COLUMN public.parametros_versao.taxa_custo_captacao IS 'NULL = Custo 
 -- 6. LINHAS DE RECEITA E CUSTO (PRD Tela 2, seções 3.3) + DISTRIBUIÇÃO (Tela 3, 3.4)
 -- -----------------------------------------------------------------------------
 
-CREATE TABLE public.linhas_receita (
+CREATE TABLE IF NOT EXISTS public.linhas_receita (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     versao_id UUID NOT NULL REFERENCES public.versoes(id) ON DELETE CASCADE,
     descricao TEXT NOT NULL,
@@ -179,9 +206,9 @@ CREATE TABLE public.linhas_receita (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_linhas_receita_versao_id ON public.linhas_receita(versao_id);
+CREATE INDEX IF NOT EXISTS idx_linhas_receita_versao_id ON public.linhas_receita(versao_id);
 
-CREATE TABLE public.linhas_custo (
+CREATE TABLE IF NOT EXISTS public.linhas_custo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     versao_id UUID NOT NULL REFERENCES public.versoes(id) ON DELETE CASCADE,
     descricao TEXT NOT NULL,
@@ -195,7 +222,7 @@ CREATE TABLE public.linhas_custo (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_linhas_custo_versao_id ON public.linhas_custo(versao_id);
+CREATE INDEX IF NOT EXISTS idx_linhas_custo_versao_id ON public.linhas_custo(versao_id);
 
 COMMENT ON COLUMN public.linhas_receita.origem_line_id IS 'Presente = linha importada, bloqueada para edição de volumetria/prazo/valor unitário enquanto o vínculo estiver ativo (validação no FastAPI).';
 COMMENT ON TABLE public.linhas_receita IS 'Total e parâmetros unitários apenas. Valor total é sempre calculado (volumetria × valor_unitario) — nunca persistido como campo próprio (PRD 3.3).';
@@ -204,7 +231,7 @@ COMMENT ON TABLE public.linhas_receita IS 'Total e parâmetros unitários apenas
 -- is_override = true diferencia célula editada manualmente da distribuição linear calculada.
 -- A distribuição linear em si NÃO é persistida linha a linha; é calculada em tempo de leitura
 -- quando não houver overrides. Apenas overrides manuais geram registro nesta tabela.
-CREATE TABLE public.distribuicao_receita (
+CREATE TABLE IF NOT EXISTS public.distribuicao_receita (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     linha_receita_id UUID NOT NULL REFERENCES public.linhas_receita(id) ON DELETE CASCADE,
     mes INTEGER NOT NULL CHECK (mes >= 1),
@@ -213,7 +240,7 @@ CREATE TABLE public.distribuicao_receita (
     UNIQUE (linha_receita_id, mes)
 );
 
-CREATE TABLE public.distribuicao_custo (
+CREATE TABLE IF NOT EXISTS public.distribuicao_custo (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     linha_custo_id UUID NOT NULL REFERENCES public.linhas_custo(id) ON DELETE CASCADE,
     mes INTEGER NOT NULL CHECK (mes >= 1),
@@ -222,8 +249,8 @@ CREATE TABLE public.distribuicao_custo (
     UNIQUE (linha_custo_id, mes)
 );
 
-CREATE INDEX idx_distribuicao_receita_linha_id ON public.distribuicao_receita(linha_receita_id);
-CREATE INDEX idx_distribuicao_custo_linha_id ON public.distribuicao_custo(linha_custo_id);
+CREATE INDEX IF NOT EXISTS idx_distribuicao_receita_linha_id ON public.distribuicao_receita(linha_receita_id);
+CREATE INDEX IF NOT EXISTS idx_distribuicao_custo_linha_id ON public.distribuicao_custo(linha_custo_id);
 
 COMMENT ON TABLE public.distribuicao_receita IS 'Existência de QUALQUER linha aqui para uma linha_receita_id = "possui override manual" — bloqueia edição de volumetria/prazo na Tela 2 até Reset (PRD 3.3, 3.4).';
 
@@ -231,9 +258,13 @@ COMMENT ON TABLE public.distribuicao_receita IS 'Existência de QUALQUER linha a
 -- 7. DESPESAS NÃO OPERACIONAIS (PRD Tela 2, seção 5b / PRD 3.3)
 -- -----------------------------------------------------------------------------
 
-CREATE TYPE public.despesa_tipo AS ENUM ('despesa', 'recuperacao');
+DO $$ BEGIN
+    CREATE TYPE public.despesa_tipo AS ENUM ('despesa', 'recuperacao');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE public.despesas_nao_operacionais (
+CREATE TABLE IF NOT EXISTS public.despesas_nao_operacionais (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     versao_id UUID NOT NULL REFERENCES public.versoes(id) ON DELETE CASCADE,
     descricao TEXT NOT NULL,
@@ -244,7 +275,7 @@ CREATE TABLE public.despesas_nao_operacionais (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_despesas_nao_operacionais_versao_id ON public.despesas_nao_operacionais(versao_id);
+CREATE INDEX IF NOT EXISTS idx_despesas_nao_operacionais_versao_id ON public.despesas_nao_operacionais(versao_id);
 
 COMMENT ON TABLE public.despesas_nao_operacionais IS 'Sem schema de distribuição temporal próprio — valor mensal sempre calculado em tempo de leitura (percentual × receita mensal da referência, ou da Receita Bruta Total se linha_receita_referencia_id for NULL). Custo Financeiro NÃO é uma linha desta tabela — é projeção calculada de parametros_versao.taxa_custo_captacao (PRD 3.3).';
 
@@ -252,9 +283,13 @@ COMMENT ON TABLE public.despesas_nao_operacionais IS 'Sem schema de distribuiç�
 -- 8. CENÁRIOS / SNAPSHOTS SALVOS (PRD Tela 7, seção 3.8)
 -- -----------------------------------------------------------------------------
 
-CREATE TYPE public.snapshot_tipo AS ENUM ('comparacao', 'whatif');
+DO $$ BEGIN
+    CREATE TYPE public.snapshot_tipo AS ENUM ('comparacao', 'whatif');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE public.versao_snapshots (
+CREATE TABLE IF NOT EXISTS public.versao_snapshots (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     contrato_id UUID NOT NULL REFERENCES public.contratos(id) ON DELETE CASCADE,
     tipo public.snapshot_tipo NOT NULL,
@@ -267,7 +302,7 @@ CREATE TABLE public.versao_snapshots (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_versao_snapshots_contrato_id ON public.versao_snapshots(contrato_id);
+CREATE INDEX IF NOT EXISTS idx_versao_snapshots_contrato_id ON public.versao_snapshots(contrato_id);
 
 COMMENT ON COLUMN public.versao_snapshots.resultado IS 'Snapshot read-only (PRD 3.8) — alterações posteriores nas versões-base não propagam para cá.';
 
