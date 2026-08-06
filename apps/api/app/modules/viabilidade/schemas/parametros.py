@@ -17,4 +17,7 @@ class ParametrosVersaoRequest(BaseModel):
 
 class ParametrosVersaoResponse(ParametrosVersaoRequest):
     versao_id: UUID
-    updated_at: datetime
+    # None enquanto a versão não tiver nenhum parametros_versao gravado ainda
+    # (fallback em routes_parametros.obter_parametros) — nunca assumir que toda
+    # versão já tem um registro só porque ela existe.
+    updated_at: datetime | None
