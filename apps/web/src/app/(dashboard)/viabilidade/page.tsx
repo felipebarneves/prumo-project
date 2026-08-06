@@ -79,11 +79,12 @@ export default function ProjetosPage() {
       setCampos(CAMPOS_INICIAIS);
       router.push(`/viabilidade/contratos/${contrato.id}/versoes/${contrato.versao_inicial_id}/parametros`);
     } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error(err.message);
-      } else {
-        toast.error("Não foi possível criar o projeto.");
-      }
+      // Sempre a mensagem EXATA vinda da API (ou do erro em si) — nunca um texto
+      // fixo genérico, que escondia qual campo/regra causou a rejeição (ex: um
+      // 422 de validação do Pydantic, ou uma regra de negócio como limite de plano).
+      console.error("ERRO FATAL CRIAR PROJETO:", err, { payloadEnviado: campos });
+      const mensagem = err instanceof Error ? err.message : "Não foi possível criar o projeto.";
+      toast.error(mensagem);
     } finally {
       setSalvando(false);
     }
