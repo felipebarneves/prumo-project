@@ -13,12 +13,16 @@ e dicionários simples consumidos pelas rotas.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from postgrest import APIError as PostgrestAPIError
 
 from app.core.supabase import supabase
+
+logger = logging.getLogger(__name__)
 
 
 def _escapar_valor_postgrest(valor: str) -> str:
@@ -77,8 +81,59 @@ def contar_contratos_ativos(organization_id: UUID) -> int:
 
 
 def criar_contrato(organization_id: UUID, created_by: UUID, dados: dict[str, Any]) -> dict[str, Any]:
+    if not organization_id or not created_by:
+        # Falha explícita em vez de deixar o Postgres rejeitar por FK/NOT NULL
+        # (org_id ausente é o sintoma mais comum de bug em get_current_user/deps.py,
+        # não da gravação em si — melhor expor isso já aqui, com contexto).
+        logger.error(
+            "criar_contrato chamado sem organization_id/created_by válidos "
+            "(organization_id=%s, created_by=%s) — payload=%s",
+            organization_id, created_by, dados,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "ORGANIZATION_ID_AUSENTE",
+                "message": "Não foi possível determinar a organização do usuário autenticado.",
+            },
+        )
+
     payload = {**dados, "organization_id": str(organization_id), "created_by": str(created_by)}
-    resp = supabase.table("contratos").insert(payload).execute()
+    try:
+        resp = supabase.table("contratos").insert(payload).execute()
+    except PostgrestAPIError as exc:
+        # Loga a mensagem exata do PostgREST/Postgres (ex: violação de FK em
+        # organization_id, violação de RLS se a service role key estiver mal
+        # configurada, CHECK constraint) antes de traduzir para um 500 genérico
+        # ao cliente — sem isso, a causa raiz nunca aparece em lugar nenhum.
+        logger.error(
+            "Falha ao inserir em 'contratos' para organization_id=%s created_by=%s: "
+            "code=%s message=%s details=%s hint=%s payload=%s",
+            organization_id, created_by, exc.code, exc.message, exc.details, exc.hint, payload,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error_code": "FALHA_AO_CRIAR_CONTRATO",
+                "message": "Não foi possível criar o projeto. Tente novamente ou contate o suporte.",
+            },
+        ) from exc
+
+    if not resp.data:
+        logger.error(
+            "Insert em 'contratos' retornou sem dados (organization_id=%s created_by=%s payload=%s) — "
+            "possível política RLS bloqueando o SELECT de retorno do INSERT.",
+            organization_id, created_by, payload,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error_code": "FALHA_AO_CRIAR_CONTRATO",
+                "message": "O projeto pode não ter sido criado corretamente. Verifique antes de tentar novamente.",
+            },
+        )
+
     return resp.data[0]
 
 
@@ -106,7 +161,10 @@ def listar_contratos(organization_id: UUID, filtros: dict[str, Any], page: int, 
         query = query.or_(f"nome_projeto.ilike.%{termo}%,cliente.ilike.%{termo}%")
     inicio = (page - 1) * page_size
     resp = query.range(inicio, inicio + page_size - 1).execute()
-    return resp.data, resp.count or 0
+    # resp.data pode vir None (não apenas []) quando a organização não tem
+    # nenhum contrato ainda (usuário novo) — sem o `or []` aqui, o `for item in itens`
+    # da rota estoura TypeError e a listagem retorna 500 em vez de 200 com [].
+    return resp.data or [], resp.count or 0
 
 
 def listar_vinculos_modulo(contrato_id: UUID) -> list[dict[str, Any]]:

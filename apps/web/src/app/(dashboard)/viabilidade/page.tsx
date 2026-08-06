@@ -167,14 +167,17 @@ export default function ProjetosPage() {
                       id="duracao_meses"
                       type="number"
                       min={1}
-                      value={campos.duracao_meses}
-                      onChange={(e) => setCampos({ ...campos, duracao_meses: Number(e.target.value) })}
+                      value={campos.duracao_meses || ""}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        setCampos({ ...campos, duracao_meses: valor === "" ? 0 : Number(valor) });
+                      }}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="nome_contrato">Nome do Contrato</Label>
+                  <Label htmlFor="nome_contrato">Descrição do Projeto</Label>
                   <Input
                     id="nome_contrato"
                     value={campos.nome_contrato}
@@ -249,6 +252,12 @@ export default function ProjetosPage() {
         <EmptyState
           title="Nenhum projeto cadastrado"
           description="Crie o primeiro projeto para começar a análise de viabilidade."
+          action={
+            <Button onClick={() => setDialogAberto(true)}>
+              <Plus className="mr-1 h-4 w-4" />
+              Cadastre seu primeiro projeto
+            </Button>
+          }
         />
       ) : null}
 

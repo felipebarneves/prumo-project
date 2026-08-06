@@ -1,6 +1,13 @@
+import logging
+
 from fastapi import FastAPI
 from .api.routes.health import router as health_router
 from .modules.viabilidade.api.router import router as viabilidade_router
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 app = FastAPI(title="Prumo API", version="0.1.0")
 
