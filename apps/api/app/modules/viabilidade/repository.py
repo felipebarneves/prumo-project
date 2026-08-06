@@ -495,3 +495,51 @@ def criar_snapshot(contrato_id: UUID, created_by: UUID, dados: dict[str, Any]) -
 def excluir_snapshot(snapshot_id: UUID, contrato_id: UUID) -> None:
     get_snapshot_or_404(snapshot_id, contrato_id)
     supabase.table("versao_snapshots").delete().eq("id", str(snapshot_id)).eq("contrato_id", str(contrato_id)).execute()
+
+
+# --------------------------------------------------------------------------- convites (Tela 10 — aceite)
+#
+# Estas consultas são por `token` (não por organization_id/user_id) porque quem
+# chama ainda não está autenticado nem associado a nenhuma organização — é
+# exatamente o caso em que a RLS de organization_invites ("Owner vê convites da
+# própria organização") bloquearia o SELECT. O cliente `supabase` deste módulo já
+# usa a service role key (ver cabeçalho do arquivo), então essas funções a
+# contornam por construção; o token aleatório de 128 bits é o único fator de
+# autorização válido aqui, nunca a sessão do chamador.
+
+def get_convite_por_token(token: UUID) -> dict[str, Any] | None:
+    resp = (
+        supabase.table("organization_invites")
+        .select("*, organizations(name)")
+        .eq("token", str(token))
+        .limit(1)
+        .execute()
+    )
+    return resp.data[0] if resp.data else None
+
+
+def marcar_convite_aceito(convite_id: UUID, accepted_by: UUID) -> dict[str, Any]:
+    resp = (
+        supabase.table("organization_invites")
+        .update({"status": "aceito", "accepted_by": str(accepted_by), "accepted_at": "now()"})
+        .eq("id", str(convite_id))
+        .execute()
+    )
+    return resp.data[0]
+
+
+def criar_profile(user_id: UUID, full_name: str) -> dict[str, Any]:
+    payload = {"id": str(user_id), "full_name": full_name}
+    resp = supabase.table("profiles").insert(payload).execute()
+    return resp.data[0]
+
+
+def criar_membro_organizacao(organization_id: UUID, user_id: UUID, role: str) -> dict[str, Any]:
+    payload = {
+        "organization_id": str(organization_id),
+        "user_id": str(user_id),
+        "role": role,
+        "active_modules": ["viabilidade"],
+    }
+    resp = supabase.table("organization_members").insert(payload).execute()
+    return resp.data[0]

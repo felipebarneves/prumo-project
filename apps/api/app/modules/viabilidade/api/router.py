@@ -5,6 +5,7 @@ from fastapi import APIRouter
 
 from . import (
     routes_contratos,
+    routes_convites,
     routes_cronograma,
     routes_dashboard,
     routes_despesas,
@@ -18,6 +19,7 @@ from . import (
 router = APIRouter()
 
 router.include_router(routes_contratos.router)
+router.include_router(routes_convites.router)
 router.include_router(routes_versoes.router)
 router.include_router(routes_parametros.router)
 router.include_router(routes_linhas.router)
