@@ -60,7 +60,13 @@ export default function ProjetosPage() {
   const [campos, setCampos] = useState<ContratoCreatePayload>(CAMPOS_INICIAIS);
 
   const { data, loading, error, refetch } = useApiResource(
-    () => viabilidadeApi.listarContratos({ mostrar_arquivados: mostrarArquivados, page_size: 100 }),
+    () =>
+      viabilidadeApi
+        .listarContratos({ mostrar_arquivados: mostrarArquivados, page_size: 100 })
+        .catch((err) => {
+          console.error("ERRO FATAL FETCH PROJETOS:", err);
+          throw err;
+        }),
     [mostrarArquivados]
   );
 
