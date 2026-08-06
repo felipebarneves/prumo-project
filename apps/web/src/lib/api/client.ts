@@ -1,7 +1,38 @@
 import { createClient } from "@/lib/supabase";
 import type { ErrorResponseBody } from "@/lib/types/viabilidade";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const FALLBACK_API_BASE_URL = "http://localhost:8000";
+
+/**
+ * Resolve `NEXT_PUBLIC_API_URL` para uma base de URL sempre absoluta e sem
+ * barra final — `new URL(base + path)` lança "Invalid URL" (não um erro de
+ * rede, indistinguível de uma falha de conexão) sempre que a env var vem
+ * ausente, vazia, sem protocolo (ex: "api.prumo.com") ou com barra dupla.
+ */
+function resolveApiBaseUrl(raw: string | undefined): string {
+  const semBarraFinal = raw?.trim().replace(/\/+$/, "");
+
+  if (!semBarraFinal) {
+    console.warn(
+      `[apiRequest] NEXT_PUBLIC_API_URL ausente — usando fallback "${FALLBACK_API_BASE_URL}".`
+    );
+    return FALLBACK_API_BASE_URL;
+  }
+
+  if (/^https?:\/\//i.test(semBarraFinal)) {
+    return semBarraFinal;
+  }
+
+  // Sem protocolo, "new URL" trata a string toda como path relativo e quebra
+  // — assume http:// para hosts locais (dev) e https:// para qualquer outro
+  // domínio (produção nunca deveria servir a API em texto claro).
+  const protocolo = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(semBarraFinal) ? "http" : "https";
+  const comProtocolo = `${protocolo}://${semBarraFinal}`;
+  console.warn(`[apiRequest] NEXT_PUBLIC_API_URL="${raw}" sem protocolo — normalizado para "${comProtocolo}".`);
+  return comProtocolo;
+}
+
+const API_BASE_URL = resolveApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 
 export class ApiError extends Error {
   readonly errorCode: string;
@@ -66,10 +97,25 @@ interface RequestOptions {
   searchParams?: Record<string, unknown>;
 }
 
+/** Junta base + path sem produzir "//" (fora do "://" do protocolo) nem path
+ * relativo quebrado — `path` sempre deve chegar como "/api/v1/..." dos módulos
+ * de api/*, mas normaliza mesmo assim para não depender só dessa convenção. */
+function montarUrl(base: string, path: string): URL {
+  const pathSanitizado = `/${path.replace(/^\/+/, "")}`;
+  try {
+    return new URL(`${base}${pathSanitizado}`);
+  } catch (err) {
+    // "Invalid URL" nativo não diz QUAL string falhou — sem isso, esse erro
+    // é indistinguível de uma falha de rede no restante do apiRequest.
+    console.error("[apiRequest] Falha ao montar URL da requisição", { base, path, pathSanitizado, err });
+    throw new Error(`URL da API inválida (base="${base}", path="${path}").`);
+  }
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, searchParams } = options;
 
-  const url = new URL(`${API_BASE_URL}${path}`);
+  const url = montarUrl(API_BASE_URL, path);
   if (searchParams) {
     for (const [key, value] of Object.entries(searchParams)) {
       if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
