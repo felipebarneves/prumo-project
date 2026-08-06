@@ -8,6 +8,7 @@ de plano) — consistente com PRD 5.1: nenhuma regra crítica depende do fronten
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -15,6 +16,8 @@ from fastapi import Depends, Header, HTTPException, status
 
 from app.core.supabase import supabase
 from ..schemas.common import ErrorCode, OrganizationRole, SubscriptionStatus
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -44,21 +47,37 @@ async def get_current_user(authorization: str = Header(default="")) -> CurrentUs
     try:
         auth_response = supabase.auth.get_user(token)
     except Exception as exc:  # noqa: BLE001 — erro de rede/token do SDK do Supabase
+        logger.error("supabase.auth.get_user falhou: %s", exc, exc_info=True)
         raise _erro(status.HTTP_401_UNAUTHORIZED, "TOKEN_INVALIDO", "Sessão expirada ou inválida.") from exc
 
     if auth_response is None or auth_response.user is None:
+        logger.error("supabase.auth.get_user retornou sem usuário para o token informado.")
         raise _erro(status.HTTP_401_UNAUTHORIZED, "TOKEN_INVALIDO", "Sessão expirada ou inválida.")
 
     user_id = auth_response.user.id
 
-    membro = (
-        supabase.table("organization_members")
-        .select("organization_id, role, organizations(plan_tier, subscription_status)")
-        .eq("user_id", user_id)
-        .limit(1)
-        .execute()
-    )
+    try:
+        membro = (
+            supabase.table("organization_members")
+            .select("organization_id, role, organizations(plan_tier, subscription_status)")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:  # noqa: BLE001 — erro do PostgREST/Supabase na resolução de organização
+        logger.error("Falha ao consultar organization_members para user_id=%s: %s", user_id, exc, exc_info=True)
+        raise _erro(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "FALHA_AO_RESOLVER_ORGANIZACAO",
+            "Não foi possível verificar sua organização. Tente novamente.",
+        ) from exc
+
     if not membro.data:
+        # Usuário autenticado no Supabase Auth, mas sem linha em organization_members —
+        # ou o provisionamento (convite aceito / primeiro Owner) falhou, ou o usuário
+        # está tentando acessar antes desse passo. Logado com user_id para investigação,
+        # nunca deve aparecer para um usuário que já concluiu o cadastro normalmente.
+        logger.error("Usuário user_id=%s autenticado, mas sem registro em organization_members.", user_id)
         raise _erro(status.HTTP_403_FORBIDDEN, "SEM_ORGANIZACAO", "Usuário não pertence a nenhuma organização.")
 
     registro = membro.data[0]

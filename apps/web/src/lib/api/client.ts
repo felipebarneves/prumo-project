@@ -46,11 +46,22 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   };
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
-  const response = await fetch(url.toString(), {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch (networkError) {
+    console.error("[apiRequest] Falha de rede ao chamar a API", {
+      method,
+      url: url.toString(),
+      body,
+      error: networkError,
+    });
+    throw networkError;
+  }
 
   if (response.status === 204) {
     return undefined as T;
@@ -63,6 +74,16 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       error_code: "ERRO_DESCONHECIDO",
       message: "Ocorreu um erro inesperado. Tente novamente.",
     };
+    // Loga o payload exato enviado e a resposta exata recebida do backend —
+    // sem isso, o toast genérico exibido ao usuário é a única pista disponível
+    // para depurar uma falha de gravação/leitura (ex: RLS, org_id ausente).
+    console.error("[apiRequest] Requisição falhou", {
+      method,
+      url: url.toString(),
+      requestBody: body,
+      status: response.status,
+      responseBody: payload,
+    });
     throw new ApiError(response.status, errorBody);
   }
 

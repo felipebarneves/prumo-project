@@ -160,7 +160,23 @@ def listar_contratos(organization_id: UUID, filtros: dict[str, Any], page: int, 
         termo = _escapar_valor_postgrest(filtros["busca"])
         query = query.or_(f"nome_projeto.ilike.%{termo}%,cliente.ilike.%{termo}%")
     inicio = (page - 1) * page_size
-    resp = query.range(inicio, inicio + page_size - 1).execute()
+    try:
+        resp = query.range(inicio, inicio + page_size - 1).execute()
+    except PostgrestAPIError as exc:
+        logger.error(
+            "Falha ao listar 'contratos' para organization_id=%s filtros=%s page=%s page_size=%s: "
+            "code=%s message=%s details=%s hint=%s",
+            organization_id, filtros, page, page_size, exc.code, exc.message, exc.details, exc.hint,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error_code": "FALHA_AO_LISTAR_CONTRATOS",
+                "message": "Não foi possível carregar os projetos. Tente novamente.",
+            },
+        ) from exc
+
     # resp.data pode vir None (não apenas []) quando a organização não tem
     # nenhum contrato ainda (usuário novo) — sem o `or []` aqui, o `for item in itens`
     # da rota estoura TypeError e a listagem retorna 500 em vez de 200 com [].
