@@ -57,6 +57,21 @@ def test_soma_nao_diverge_sem_overrides():
     assert soma_diverge_do_total(distribuicao, Decimal("200")) is False
 
 
+def test_soma_nao_diverge_com_resto_de_dizima_dentro_da_tolerancia():
+    # 100 ÷ 3 é uma dízima periódica — mesmo em Decimal de alta precisão, a soma
+    # dos 3 meses nunca fecha exatamente 100 (resto na última casa decimal). Isso
+    # não é uma divergência real de dado; é o resto esperado da divisão linear, e
+    # o alerta "Soma diverge do total" não deveria acender por causa dele
+    # (falso positivo — antes desta tolerância, este teste falhava).
+    distribuicao = distribuir_volumetria(mes_inicio=1, prazo_meses=3, volumetria_total=Decimal("100"))
+    assert soma_diverge_do_total(distribuicao, Decimal("100")) is False
+
+
+def test_soma_diverge_quando_diferenca_excede_a_tolerancia():
+    distribuicao = {1: Decimal("50"), 2: Decimal("49.98")}
+    assert soma_diverge_do_total(distribuicao, Decimal("100")) is True
+
+
 def test_valor_mensal_calculado_multiplica_volumetria_por_unitario():
     distribuicao = {1: Decimal("10"), 2: Decimal("20")}
     valores = valor_mensal_calculado(distribuicao, Decimal("5"))

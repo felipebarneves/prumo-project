@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
-import { formatNumber } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
 import { ApiError } from "@/lib/api/client";
@@ -128,6 +128,7 @@ function CronogramaTabela({ versaoId, tipo }: { versaoId: string; tipo: "receita
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-center">Totalizador</TableHead>
                   {data.meses.map((mes) => (
                     <TableHead key={mes} className="text-center">
                       {mes}
@@ -137,6 +138,14 @@ function CronogramaTabela({ versaoId, tipo }: { versaoId: string; tipo: "receita
               </TableHeader>
               <TableBody>
                 <TableRow>
+                  <TableCell className="bg-muted/40 p-1 text-center">
+                    <p className="font-medium">{formatNumber(linha.total_linha)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(
+                        linha.celulas.reduce((soma, c) => soma + Number(c.valor_calculado ?? 0), 0)
+                      )}
+                    </p>
+                  </TableCell>
                   {linha.celulas.map((celula) => {
                     const chave = `${linha.linha_id}-${celula.mes}`;
                     if (!celula.dentro_da_janela) {
@@ -154,6 +163,7 @@ function CronogramaTabela({ versaoId, tipo }: { versaoId: string; tipo: "receita
                           onChange={(e) => setEditando((prev) => ({ ...prev, [chave]: e.target.value }))}
                           onBlur={() => salvarCelula(linha.linha_id, celula.mes)}
                         />
+                        <p className="mt-1 text-xs text-muted-foreground">{formatCurrency(celula.valor_calculado)}</p>
                       </TableCell>
                     );
                   })}

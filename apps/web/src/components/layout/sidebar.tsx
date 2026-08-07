@@ -10,9 +10,11 @@ import {
   FileBarChart,
   Gauge,
   GitCompareArrows,
+  History,
   ListChecks,
   LogOut,
   Settings,
+  SlidersHorizontal,
   Wallet,
 } from "lucide-react";
 
@@ -35,11 +37,12 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", slug: "dashboard", icon: Gauge },
   { label: "Projetos", slug: "", icon: ListChecks, global: true },
+  { label: "Parâmetros", slug: "parametros", icon: SlidersHorizontal },
   { label: "Cronograma", slug: "cronograma", icon: Clock },
   { label: "DRE", slug: "dre", icon: FileBarChart },
   { label: "Fluxo de Caixa", slug: "fluxo-caixa", icon: Wallet },
   { label: "Cenários", slug: "cenarios", icon: GitCompareArrows },
-  { label: "Histórico", slug: "historico", icon: Clock },
+  { label: "Histórico", slug: "historico", icon: History },
   { label: "Configurações", slug: "configuracoes", icon: Settings },
 ];
 

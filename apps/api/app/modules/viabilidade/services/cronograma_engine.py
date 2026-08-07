@@ -42,9 +42,17 @@ def distribuir_volumetria(
     return resultado
 
 
+TOLERANCIA_DIVERGENCIA = Decimal("0.01")
+
+
 def soma_diverge_do_total(distribuicao: dict[int, Decimal], total_linha: Decimal) -> bool:
+    """Compara com tolerância — a divisão linear (total ÷ meses) quase sempre deixa
+    um resto de dízima (ex: 100 ÷ 3 = 33,33 × 3 = 99,99), que não é uma divergência
+    real de dado e não deveria acender o aviso "Soma diverge do total" (falso
+    positivo). Só sinaliza quando a diferença excede 1 centavo.
+    """
     soma = sum(distribuicao.values(), Decimal(0))
-    return soma != total_linha
+    return abs(soma - total_linha) > TOLERANCIA_DIVERGENCIA
 
 
 def valor_mensal_calculado(distribuicao: dict[int, Decimal], valor_unitario: Decimal) -> dict[int, Decimal]:

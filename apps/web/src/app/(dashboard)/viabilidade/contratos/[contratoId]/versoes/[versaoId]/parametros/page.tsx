@@ -25,6 +25,9 @@ import type { DespesaNaoOperacional, DespesaTipo, LinhaCusto, LinhaReceita } fro
 
 const UNIDADES_MEDIDA = ["unitario", "mensal", "hora", "km"] as const;
 
+/** Aba ativa/hover na cor dourada da marca (--gold-1, via o token --primary). */
+const TAB_TRIGGER_GOLD = "hover:text-primary data-active:text-primary data-active:after:bg-primary";
+
 export default function ParametrosPage() {
   const { versaoId } = useParams<{ versaoId: string }>();
 
@@ -39,10 +42,18 @@ export default function ParametrosPage() {
 
       <Tabs defaultValue="gerais">
         <TabsList>
-          <TabsTrigger value="gerais">Parâmetros Gerais</TabsTrigger>
-          <TabsTrigger value="receita">Receita</TabsTrigger>
-          <TabsTrigger value="custo">Custo</TabsTrigger>
-          <TabsTrigger value="despesas">Despesas Não Operacionais</TabsTrigger>
+          <TabsTrigger value="gerais" className={TAB_TRIGGER_GOLD}>
+            Parâmetros Gerais
+          </TabsTrigger>
+          <TabsTrigger value="receita" className={TAB_TRIGGER_GOLD}>
+            Receita
+          </TabsTrigger>
+          <TabsTrigger value="custo" className={TAB_TRIGGER_GOLD}>
+            Custo
+          </TabsTrigger>
+          <TabsTrigger value="despesas" className={TAB_TRIGGER_GOLD}>
+            Despesas Não Operacionais
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="gerais" className="pt-4">
@@ -213,7 +224,7 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="[&>th]:text-primary">
               <TableHead>Descrição</TableHead>
               <TableHead>Unidade</TableHead>
               <TableHead className="text-right">Volumetria</TableHead>
@@ -584,7 +595,7 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="[&>th]:text-primary">
               <TableHead>Descrição</TableHead>
               <TableHead>Unidade</TableHead>
               <TableHead className="text-right">Volumetria</TableHead>
@@ -941,7 +952,7 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="[&>th]:text-primary">
               <TableHead>Descrição</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Percentual</TableHead>
