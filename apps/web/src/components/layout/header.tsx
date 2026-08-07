@@ -29,6 +29,7 @@ export function Header() {
   );
 
   const contratoAtivo = contratos?.items.find((c) => c.id === contratoId);
+  const versaoAtiva = versoes?.find((v) => v.id === versaoId);
 
   function trocarProjeto(novoContratoId: string) {
     const alvo = contratos?.items.find((c) => c.id === novoContratoId);
@@ -63,7 +64,7 @@ export function Header() {
             </span>
             <Select value={versaoId} onValueChange={(v) => v && trocarVersao(v)}>
               <SelectTrigger className="w-48">
-                <SelectValue />
+                <SelectValue>{versaoAtiva?.nome_versao ?? "Selecione a versão"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {versoes?.map((versao) => (

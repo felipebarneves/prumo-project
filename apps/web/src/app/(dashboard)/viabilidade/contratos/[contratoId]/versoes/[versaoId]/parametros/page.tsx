@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
 import { PercentInput } from "@/components/finance/percent-input";
 import { CurrencyInput } from "@/components/finance/currency-input";
@@ -20,7 +21,9 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
 import { ApiError } from "@/lib/api/client";
-import type { DespesaTipo } from "@/lib/types/viabilidade";
+import type { DespesaTipo, LinhaReceita } from "@/lib/types/viabilidade";
+
+const UNIDADES_MEDIDA = ["unitario", "mensal", "hora", "km"] as const;
 
 export default function ParametrosPage() {
   const { versaoId } = useParams<{ versaoId: string }>();
@@ -148,8 +151,17 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
     () => viabilidadeApi.listarLinhasReceita(versaoId),
     [versaoId]
   );
-  const [novaLinha, setNovaLinha] = useState({ descricao: "", unidade_medida: "", volumetria: "", valor_unitario: "" });
+  const [novaLinha, setNovaLinha] = useState({
+    descricao: "",
+    unidade_medida: "" as string,
+    volumetria: "",
+    valor_unitario: "",
+    aliquota_especifica: "",
+    mes_inicio: "",
+    prazo_meses: "",
+  });
   const [salvando, setSalvando] = useState(false);
+  const [linhaEditando, setLinhaEditando] = useState<LinhaReceita | null>(null);
 
   async function adicionar() {
     if (!novaLinha.descricao || !novaLinha.unidade_medida) {
@@ -163,11 +175,19 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
         unidade_medida: novaLinha.unidade_medida,
         volumetria: novaLinha.volumetria || "0",
         valor_unitario: novaLinha.valor_unitario || "0",
-        mes_inicio: null,
-        prazo_meses: null,
-        aliquota_especifica: null,
+        mes_inicio: novaLinha.mes_inicio ? Number(novaLinha.mes_inicio) : null,
+        prazo_meses: novaLinha.prazo_meses ? Number(novaLinha.prazo_meses) : null,
+        aliquota_especifica: novaLinha.aliquota_especifica || null,
       });
-      setNovaLinha({ descricao: "", unidade_medida: "", volumetria: "", valor_unitario: "" });
+      setNovaLinha({
+        descricao: "",
+        unidade_medida: "",
+        volumetria: "",
+        valor_unitario: "",
+        aliquota_especifica: "",
+        mes_inicio: "",
+        prazo_meses: "",
+      });
       refetch();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Não foi possível criar a linha de receita.");
@@ -198,28 +218,42 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
               <TableHead>Unidade</TableHead>
               <TableHead className="text-right">Volumetria</TableHead>
               <TableHead className="text-right">Valor Unitário</TableHead>
+              <TableHead className="text-right">Impostos (%)</TableHead>
+              <TableHead className="text-right">Mês Início</TableHead>
+              <TableHead className="text-right">Prazo (meses)</TableHead>
               <TableHead className="text-right">Total Calculado</TableHead>
-              <TableHead>Origem</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data?.map((linha) => (
               <TableRow key={linha.id}>
-                <TableCell className="font-medium">{linha.descricao}</TableCell>
-                <TableCell>{linha.unidade_medida}</TableCell>
-                <TableCell className="text-right">{formatNumber(linha.volumetria)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(linha.valor_unitario)}</TableCell>
-                <TableCell className="text-right font-medium">{formatCurrency(linha.valor_total_calculado)}</TableCell>
-                <TableCell>
-                  {linha.bloqueado_por_origem ? <Badge variant="outline">Importada</Badge> : null}
+                <TableCell className="font-medium">
+                  {linha.descricao}
+                  {linha.bloqueado_por_origem ? (
+                    <Badge variant="outline" className="ml-2">
+                      Importada
+                    </Badge>
+                  ) : null}
                   {linha.bloqueado_por_override ? (
-                    <Badge variant="outline" className="ml-1">
+                    <Badge variant="outline" className="ml-2">
                       Distribuição manual
                     </Badge>
                   ) : null}
                 </TableCell>
+                <TableCell>{linha.unidade_medida}</TableCell>
+                <TableCell className="text-right">{formatNumber(linha.volumetria)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(linha.valor_unitario)}</TableCell>
                 <TableCell className="text-right">
+                  {linha.aliquota_especifica ? `${formatNumber(Number(linha.aliquota_especifica) * 100)}%` : "—"}
+                </TableCell>
+                <TableCell className="text-right">{linha.mes_inicio ?? "—"}</TableCell>
+                <TableCell className="text-right">{linha.prazo_meses ?? "—"}</TableCell>
+                <TableCell className="text-right font-medium">{formatCurrency(linha.valor_total_calculado)}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => setLinhaEditando(linha)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -233,7 +267,7 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
             ))}
             {data && data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={9}>
                   <EmptyState title="Nenhuma linha de receita cadastrada" />
                 </TableCell>
               </TableRow>
@@ -253,16 +287,26 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Unidade de Medida</Label>
-          <Input
-            className="w-32"
+          <Select
             value={novaLinha.unidade_medida}
-            onChange={(e) => setNovaLinha({ ...novaLinha, unidade_medida: e.target.value })}
-          />
+            onValueChange={(v) => v && setNovaLinha({ ...novaLinha, unidade_medida: v })}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {UNIDADES_MEDIDA.map((unidade) => (
+                <SelectItem key={unidade} value={unidade}>
+                  {unidade}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Volumetria</Label>
           <Input
-            className="w-32"
+            className="w-28"
             value={novaLinha.volumetria}
             onChange={(e) => setNovaLinha({ ...novaLinha, volumetria: e.target.value })}
           />
@@ -275,12 +319,214 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
             onChange={(valor) => setNovaLinha({ ...novaLinha, valor_unitario: valor })}
           />
         </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Impostos (%)</Label>
+          <PercentInput
+            className="w-28"
+            value={novaLinha.aliquota_especifica}
+            onChange={(fracao) => setNovaLinha({ ...novaLinha, aliquota_especifica: fracao })}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Mês de Início</Label>
+          <Input
+            className="w-24"
+            type="number"
+            min={1}
+            value={novaLinha.mes_inicio}
+            onChange={(e) => setNovaLinha({ ...novaLinha, mes_inicio: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Prazo (meses)</Label>
+          <Input
+            className="w-24"
+            type="number"
+            min={1}
+            value={novaLinha.prazo_meses}
+            onChange={(e) => setNovaLinha({ ...novaLinha, prazo_meses: e.target.value })}
+          />
+        </div>
         <Button onClick={adicionar} disabled={salvando}>
           <Plus className="mr-1 h-4 w-4" />
           Adicionar linha
         </Button>
       </div>
+
+      <EditarLinhaReceitaDialog
+        versaoId={versaoId}
+        linha={linhaEditando}
+        onClose={() => setLinhaEditando(null)}
+        onSalvo={refetch}
+      />
     </div>
+  );
+}
+
+function EditarLinhaReceitaDialog({
+  versaoId,
+  linha,
+  onClose,
+  onSalvo,
+}: {
+  versaoId: string;
+  linha: LinhaReceita | null;
+  onClose: () => void;
+  onSalvo: () => void;
+}) {
+  const [form, setForm] = useState({
+    descricao: "",
+    unidade_medida: "",
+    volumetria: "",
+    valor_unitario: "",
+    aliquota_especifica: "" as string | null,
+    mes_inicio: "",
+    prazo_meses: "",
+  });
+  const [linhaCarregadaPara, setLinhaCarregadaPara] = useState<LinhaReceita | null>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  // Ajuste de estado durante a renderização (mesmo padrão de ParametrosGeraisForm)
+  // — sincroniza o form com a linha selecionada para edição sem useEffect.
+  if (linha && linha !== linhaCarregadaPara) {
+    setLinhaCarregadaPara(linha);
+    setForm({
+      descricao: linha.descricao,
+      unidade_medida: linha.unidade_medida,
+      volumetria: linha.volumetria,
+      valor_unitario: linha.valor_unitario,
+      aliquota_especifica: linha.aliquota_especifica ?? "",
+      mes_inicio: linha.mes_inicio != null ? String(linha.mes_inicio) : "",
+      prazo_meses: linha.prazo_meses != null ? String(linha.prazo_meses) : "",
+    });
+  }
+
+  async function salvar() {
+    if (!linha) return;
+    setSalvando(true);
+    try {
+      await viabilidadeApi.atualizarLinhaReceita(versaoId, linha.id, {
+        descricao: form.descricao,
+        unidade_medida: form.unidade_medida,
+        volumetria: form.volumetria || "0",
+        valor_unitario: form.valor_unitario || "0",
+        aliquota_especifica: form.aliquota_especifica || null,
+        mes_inicio: form.mes_inicio ? Number(form.mes_inicio) : null,
+        prazo_meses: form.prazo_meses ? Number(form.prazo_meses) : null,
+      });
+      toast.success("Linha de receita atualizada.");
+      onClose();
+      onSalvo();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível salvar a linha de receita.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Dialog open={linha !== null} onOpenChange={(aberto) => !aberto && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Editar linha de receita</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Descrição</Label>
+            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Unidade de Medida</Label>
+              <Select
+                value={form.unidade_medida}
+                onValueChange={(v) => v && setForm({ ...form, unidade_medida: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIDADES_MEDIDA.map((unidade) => (
+                    <SelectItem key={unidade} value={unidade}>
+                      {unidade}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Impostos (%)</Label>
+              <PercentInput
+                value={form.aliquota_especifica}
+                onChange={(fracao) => setForm({ ...form, aliquota_especifica: fracao })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Volumetria</Label>
+              <Input
+                disabled={linha?.bloqueado_por_origem || linha?.bloqueado_por_override}
+                value={form.volumetria}
+                onChange={(e) => setForm({ ...form, volumetria: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Valor Unitário</Label>
+              <CurrencyInput
+                disabled={linha?.bloqueado_por_origem}
+                value={form.valor_unitario}
+                onChange={(valor) => setForm({ ...form, valor_unitario: valor })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Mês de Início</Label>
+              <Input
+                type="number"
+                min={1}
+                value={form.mes_inicio}
+                onChange={(e) => setForm({ ...form, mes_inicio: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Prazo (meses)</Label>
+              <Input
+                type="number"
+                min={1}
+                disabled={linha?.bloqueado_por_origem || linha?.bloqueado_por_override}
+                value={form.prazo_meses}
+                onChange={(e) => setForm({ ...form, prazo_meses: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {linha?.bloqueado_por_origem ? (
+            <p className="text-xs text-muted-foreground">
+              Volumetria, Valor Unitário e Prazo são importados de outro módulo e não podem ser alterados aqui.
+            </p>
+          ) : linha?.bloqueado_por_override ? (
+            <p className="text-xs text-muted-foreground">
+              Volumetria e Prazo têm distribuição manual por mês e não podem ser alterados aqui.
+            </p>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando ? "Salvando..." : "Salvar alterações"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
