@@ -46,7 +46,9 @@ Duas estratégias documentadas — **a recomendada é a Opção A**, pois não e
 
 ### Opção B: um único projeto (raiz do monorepo), roteamento combinado
 
-`vercel.json` na raiz (criado nesta rodada) usa o formato legado `builds`/`routes` da Vercel para compor `@vercel/python` (via `apps/api/index.py`) e `@vercel/next` (via `apps/web/package.json`) num único deploy, roteando `/api/*` para o FastAPI e delegando o restante ao Next (o builder do Next injeta suas próprias rotas automaticamente depois das que declaramos).
+`vercel.json` na raiz usa o formato legado `builds`/`routes` da Vercel para compor `@vercel/python` (via `apps/api/index.py`) e `@vercel/next` (via `apps/web/package.json`) num único deploy, roteando `/api/*` para o FastAPI e delegando o restante ao Next (o builder do Next injeta suas próprias rotas automaticamente depois das que declaramos — por isso não há um `route` catch-all explícito para `apps/web` no arquivo: declará-lo manualmente interceptaria os assets estáticos do Next, como `/_next/static/*`, antes que o builder tivesse a chance de servi-los).
+
+**Correção nesta rodada:** o arquivo continha apenas `rewrites` (`/api/(.*)` → `apps/api/index.py`), sem nenhum `builds`/`functions` correspondente. Um `rewrite` só redireciona a URL — ele não instrui a Vercel a empacotar `apps/api/index.py` como Serverless Function. Sem essa declaração, a Opção B nunca tinha a função Python publicada, e todo `/api/*` retornava 404 mesmo com o FastAPI e as rotas do Kaiser corretas. Substituído por `builds`/`routes` (compatível com `@vercel/python` + `@vercel/next` no mesmo deploy).
 
 **Limitação conhecida desta opção:** a rota `/health` do FastAPI (`apps/api/app/api/routes/health.py`) não está sob o prefixo `/api/`, então nesta configuração ela nunca é alcançada — cairia no roteamento do Next.js e retornaria 404. Isso não afeta o módulo Viabilidade (todas as rotas já vivem sob `/api/v1/...`), mas health checks externos (uptime monitors) devem apontar para outra rota, ou a Opção A deve ser usada. Não alterei `health.py` para resolver isso, por estar fora do escopo de infraestrutura (é código do Kaiser).
 
