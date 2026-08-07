@@ -30,7 +30,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(health_router)
+# Sem o prefixo "/api", esta rota fica inacessível na Opção B do vercel.json
+# (raiz do monorepo) — o rewrite só encaminha "/api/*" para este app; qualquer
+# rota fora desse prefixo cai no roteamento do Next.js e retorna 404
+# (ver docs/deploy.md, seção "Opção B").
+app.include_router(health_router, prefix="/api")
 app.include_router(viabilidade_router)
 
 
