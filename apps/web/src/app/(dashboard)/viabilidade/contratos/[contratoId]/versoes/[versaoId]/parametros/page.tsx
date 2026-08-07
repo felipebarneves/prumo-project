@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
+import { PercentInput } from "@/components/finance/percent-input";
+import { CurrencyInput } from "@/components/finance/currency-input";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
@@ -105,25 +107,29 @@ function ParametrosGeraisForm({ versaoId }: { versaoId: string }) {
       <CardContent className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>Alíquota Tributária Efetiva (%)</Label>
-          <Input value={form.aliquota} onChange={(e) => setForm({ ...form, aliquota: e.target.value })} placeholder="0.06" />
+          <PercentInput value={form.aliquota} onChange={(fracao) => setForm({ ...form, aliquota: fracao })} placeholder="0,00" />
         </div>
         <div className="space-y-1.5">
           <Label>Taxa Mínima de Atratividade — TMA (%)</Label>
-          <Input value={form.tma} onChange={(e) => setForm({ ...form, tma: e.target.value })} placeholder="Vazio = não calcular VPL" />
+          <PercentInput
+            value={form.tma}
+            onChange={(fracao) => setForm({ ...form, tma: fracao })}
+            placeholder="Vazio = não calcular VPL"
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Taxa de Reinvestimento (%)</Label>
-          <Input
+          <PercentInput
             value={form.reinvestimento}
-            onChange={(e) => setForm({ ...form, reinvestimento: e.target.value })}
+            onChange={(fracao) => setForm({ ...form, reinvestimento: fracao })}
             placeholder="Vazio = não calcular TIRM"
           />
         </div>
         <div className="space-y-1.5">
           <Label>Taxa de Custo de Captação (%)</Label>
-          <Input
+          <PercentInput
             value={form.custoCaptacao}
-            onChange={(e) => setForm({ ...form, custoCaptacao: e.target.value })}
+            onChange={(fracao) => setForm({ ...form, custoCaptacao: fracao })}
             placeholder="Vazio = Custo Financeiro = 0"
           />
         </div>
@@ -263,10 +269,10 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Valor Unitário</Label>
-          <Input
+          <CurrencyInput
             className="w-32"
             value={novaLinha.valor_unitario}
-            onChange={(e) => setNovaLinha({ ...novaLinha, valor_unitario: e.target.value })}
+            onChange={(valor) => setNovaLinha({ ...novaLinha, valor_unitario: valor })}
           />
         </div>
         <Button onClick={adicionar} disabled={salvando}>
@@ -388,10 +394,10 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Custo Unitário</Label>
-          <Input
+          <CurrencyInput
             className="w-32"
             value={novaLinha.custo_unitario}
-            onChange={(e) => setNovaLinha({ ...novaLinha, custo_unitario: e.target.value })}
+            onChange={(valor) => setNovaLinha({ ...novaLinha, custo_unitario: valor })}
           />
         </div>
         <Button onClick={adicionar} disabled={salvando}>
@@ -403,14 +409,28 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
   );
 }
 
+const RECEITA_BRUTA_TOTAL = "__receita_bruta_total__";
+
 function TabelaDespesas({ versaoId }: { versaoId: string }) {
   const { data, loading, error, refetch } = useApiResource(() => viabilidadeApi.listarDespesas(versaoId), [versaoId]);
-  const [novaDespesa, setNovaDespesa] = useState<{ descricao: string; tipo: DespesaTipo; percentual: string }>({
+  const { data: linhasReceita } = useApiResource(() => viabilidadeApi.listarLinhasReceita(versaoId), [versaoId]);
+  const [novaDespesa, setNovaDespesa] = useState<{
+    descricao: string;
+    tipo: DespesaTipo;
+    percentual: string;
+    linhaReceitaReferenciaId: string;
+  }>({
     descricao: "",
     tipo: "despesa",
     percentual: "",
+    linhaReceitaReferenciaId: RECEITA_BRUTA_TOTAL,
   });
   const [salvando, setSalvando] = useState(false);
+
+  function nomeDaLinhaReferencia(linhaId: string | null): string {
+    if (!linhaId) return "Receita Bruta Total";
+    return linhasReceita?.find((linha) => linha.id === linhaId)?.descricao ?? "Linha removida";
+  }
 
   async function adicionar() {
     if (!novaDespesa.descricao) {
@@ -423,9 +443,10 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
         descricao: novaDespesa.descricao,
         tipo: novaDespesa.tipo,
         percentual: novaDespesa.percentual || "0",
-        linha_receita_referencia_id: null,
+        linha_receita_referencia_id:
+          novaDespesa.linhaReceitaReferenciaId === RECEITA_BRUTA_TOTAL ? null : novaDespesa.linhaReceitaReferenciaId,
       });
-      setNovaDespesa({ descricao: "", tipo: "despesa", percentual: "" });
+      setNovaDespesa({ descricao: "", tipo: "despesa", percentual: "", linhaReceitaReferenciaId: RECEITA_BRUTA_TOTAL });
       refetch();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Não foi possível criar a despesa.");
@@ -460,6 +481,7 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
               <TableHead>Descrição</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead className="text-right">Percentual</TableHead>
+              <TableHead>Linha de Receita de Referência</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -473,6 +495,13 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">{formatNumber(Number(despesa.percentual) * 100)}%</TableCell>
+                <TableCell>
+                  {despesa.linha_receita_referencia_id ? (
+                    <Badge variant="outline">{nomeDaLinhaReferencia(despesa.linha_receita_referencia_id)}</Badge>
+                  ) : (
+                    <span className="text-muted-foreground">Receita Bruta Total</span>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => excluir(despesa.id)}>
                     <Trash2 className="h-4 w-4" />
@@ -482,7 +511,7 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
             ))}
             {data && data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <EmptyState title="Nenhuma despesa não operacional cadastrada" />
                 </TableCell>
               </TableRow>
@@ -516,12 +545,31 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Percentual (ex: 0.10 = 10%)</Label>
-          <Input
+          <Label className="text-xs">Percentual (%)</Label>
+          <PercentInput
             className="w-32"
             value={novaDespesa.percentual}
-            onChange={(e) => setNovaDespesa({ ...novaDespesa, percentual: e.target.value })}
+            onChange={(fracao) => setNovaDespesa({ ...novaDespesa, percentual: fracao })}
           />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Linha de Receita de Referência</Label>
+          <Select
+            value={novaDespesa.linhaReceitaReferenciaId}
+            onValueChange={(v) => v && setNovaDespesa({ ...novaDespesa, linhaReceitaReferenciaId: v })}
+          >
+            <SelectTrigger className="w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={RECEITA_BRUTA_TOTAL}>Receita Bruta Total</SelectItem>
+              {linhasReceita?.map((linha) => (
+                <SelectItem key={linha.id} value={linha.id}>
+                  {linha.descricao}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button onClick={adicionar} disabled={salvando}>
           <Plus className="mr-1 h-4 w-4" />

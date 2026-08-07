@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
+import { PercentInput } from "@/components/finance/percent-input";
 import { formatCurrency, formatDate, formatMonth, formatPercent } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
@@ -203,15 +204,27 @@ function SimulacaoWhatIf({ contratoId, versaoAtualId }: { contratoId: string; ve
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Ajuste de Receita (%)</Label>
-            <Input value={ajustes.receita} onChange={(e) => setAjustes({ ...ajustes, receita: e.target.value })} />
+            <PercentInput
+              allowNegative
+              value={ajustes.receita}
+              onChange={(fracao) => setAjustes({ ...ajustes, receita: fracao || "0" })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Ajuste de Custo (%)</Label>
-            <Input value={ajustes.custo} onChange={(e) => setAjustes({ ...ajustes, custo: e.target.value })} />
+            <PercentInput
+              allowNegative
+              value={ajustes.custo}
+              onChange={(fracao) => setAjustes({ ...ajustes, custo: fracao || "0" })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Ajuste de Volumetria (Receita) (%)</Label>
-            <Input value={ajustes.volumetria} onChange={(e) => setAjustes({ ...ajustes, volumetria: e.target.value })} />
+            <PercentInput
+              allowNegative
+              value={ajustes.volumetria}
+              onChange={(fracao) => setAjustes({ ...ajustes, volumetria: fracao || "0" })}
+            />
           </div>
           <div className="sm:col-span-4">
             <Button onClick={simular} disabled={carregando}>
