@@ -42,7 +42,10 @@ def atualizar_despesa(
     current_user: CurrentUser = Depends(require_owner_or_executor),
 ):
     repository.get_versao_or_404(versao_id, current_user.organization_id)
-    atualizada = repository.atualizar_despesa(despesa_id, versao_id, payload.model_dump(exclude_none=True, mode="json"))
+    # exclude_unset (não exclude_none): linha_receita_referencia_id é opcional e
+    # nullable — só omitir o que o cliente não enviou, senão nunca seria possível
+    # limpar a referência de volta para "Receita Bruta Total" (null) via edição.
+    atualizada = repository.atualizar_despesa(despesa_id, versao_id, payload.model_dump(exclude_unset=True, mode="json"))
     return DespesaNaoOperacionalResponse(**atualizada)
 
 

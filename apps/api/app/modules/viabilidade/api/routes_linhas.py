@@ -68,7 +68,10 @@ def atualizar_linha_receita(
     linha = repository.get_linha_receita_or_404(linha_id, versao_id)
 
     campos_restritos = {"volumetria", "prazo_meses", "valor_unitario"}
-    dados = payload.model_dump(exclude_none=True, mode="json")
+    # exclude_unset (não exclude_none): aliquota_especifica é opcional e nullable
+    # — só omitir o que o cliente não enviou, senão nunca seria possível limpar a
+    # alíquota específica de volta para null (herdar a alíquota geral) via edição.
+    dados = payload.model_dump(exclude_unset=True, mode="json")
 
     if linha.get("origem_line_id") and campos_restritos & dados.keys():
         raise _erro(
@@ -144,7 +147,9 @@ def atualizar_linha_custo(
     linha = repository.get_linha_custo_or_404(linha_id, versao_id)
 
     campos_restritos = {"volumetria", "prazo_meses", "custo_unitario"}
-    dados = payload.model_dump(exclude_none=True, mode="json")
+    # exclude_unset (não exclude_none): mesmo raciocínio de atualizar_linha_receita
+    # acima — só omitir campos que o cliente não enviou no payload.
+    dados = payload.model_dump(exclude_unset=True, mode="json")
 
     if linha.get("origem_line_id") and campos_restritos & dados.keys():
         raise _erro(

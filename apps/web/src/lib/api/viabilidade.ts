@@ -158,6 +158,12 @@ export const viabilidadeApi = {
       body: payload,
     }),
 
+  atualizarDespesa: (versaoId: string, despesaId: string, payload: Partial<DespesaNaoOperacional>) =>
+    apiRequest<DespesaNaoOperacional>(`/api/v1/versoes/${versaoId}/despesas-nao-operacionais/${despesaId}`, {
+      method: "PATCH",
+      body: payload,
+    }),
+
   excluirDespesa: (versaoId: string, despesaId: string) =>
     apiRequest<void>(`/api/v1/versoes/${versaoId}/despesas-nao-operacionais/${despesaId}`, { method: "DELETE" }),
 

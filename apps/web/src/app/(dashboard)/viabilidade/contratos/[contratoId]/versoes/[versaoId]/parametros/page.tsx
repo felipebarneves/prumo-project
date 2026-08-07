@@ -21,7 +21,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
 import { ApiError } from "@/lib/api/client";
-import type { DespesaTipo, LinhaReceita } from "@/lib/types/viabilidade";
+import type { DespesaNaoOperacional, DespesaTipo, LinhaCusto, LinhaReceita } from "@/lib/types/viabilidade";
 
 const UNIDADES_MEDIDA = ["unitario", "mensal", "hora", "km"] as const;
 
@@ -532,8 +532,16 @@ function EditarLinhaReceitaDialog({
 
 function TabelaCusto({ versaoId }: { versaoId: string }) {
   const { data, loading, error, refetch } = useApiResource(() => viabilidadeApi.listarLinhasCusto(versaoId), [versaoId]);
-  const [novaLinha, setNovaLinha] = useState({ descricao: "", unidade_medida: "", volumetria: "", custo_unitario: "" });
+  const [novaLinha, setNovaLinha] = useState({
+    descricao: "",
+    unidade_medida: "" as string,
+    volumetria: "",
+    custo_unitario: "",
+    mes_inicio: "",
+    prazo_meses: "",
+  });
   const [salvando, setSalvando] = useState(false);
+  const [linhaEditando, setLinhaEditando] = useState<LinhaCusto | null>(null);
 
   async function adicionar() {
     if (!novaLinha.descricao || !novaLinha.unidade_medida) {
@@ -547,10 +555,10 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
         unidade_medida: novaLinha.unidade_medida,
         volumetria: novaLinha.volumetria || "0",
         custo_unitario: novaLinha.custo_unitario || "0",
-        mes_inicio: null,
-        prazo_meses: null,
+        mes_inicio: novaLinha.mes_inicio ? Number(novaLinha.mes_inicio) : null,
+        prazo_meses: novaLinha.prazo_meses ? Number(novaLinha.prazo_meses) : null,
       });
-      setNovaLinha({ descricao: "", unidade_medida: "", volumetria: "", custo_unitario: "" });
+      setNovaLinha({ descricao: "", unidade_medida: "", volumetria: "", custo_unitario: "", mes_inicio: "", prazo_meses: "" });
       refetch();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Não foi possível criar a linha de custo.");
@@ -581,21 +589,38 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
               <TableHead>Unidade</TableHead>
               <TableHead className="text-right">Volumetria</TableHead>
               <TableHead className="text-right">Custo Unitário</TableHead>
+              <TableHead className="text-right">Mês Início</TableHead>
+              <TableHead className="text-right">Prazo (meses)</TableHead>
               <TableHead className="text-right">Total Calculado</TableHead>
-              <TableHead>Origem</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data?.map((linha) => (
               <TableRow key={linha.id}>
-                <TableCell className="font-medium">{linha.descricao}</TableCell>
+                <TableCell className="font-medium">
+                  {linha.descricao}
+                  {linha.bloqueado_por_origem ? (
+                    <Badge variant="outline" className="ml-2">
+                      Importada
+                    </Badge>
+                  ) : null}
+                  {linha.bloqueado_por_override ? (
+                    <Badge variant="outline" className="ml-2">
+                      Distribuição manual
+                    </Badge>
+                  ) : null}
+                </TableCell>
                 <TableCell>{linha.unidade_medida}</TableCell>
                 <TableCell className="text-right">{formatNumber(linha.volumetria)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(linha.custo_unitario)}</TableCell>
+                <TableCell className="text-right">{linha.mes_inicio ?? "—"}</TableCell>
+                <TableCell className="text-right">{linha.prazo_meses ?? "—"}</TableCell>
                 <TableCell className="text-right font-medium">{formatCurrency(linha.custo_total_calculado)}</TableCell>
-                <TableCell>{linha.bloqueado_por_origem ? <Badge variant="outline">Importada</Badge> : null}</TableCell>
                 <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => setLinhaEditando(linha)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" disabled={linha.bloqueado_por_origem} onClick={() => excluir(linha.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -604,7 +629,7 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
             ))}
             {data && data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={8}>
                   <EmptyState title="Nenhuma linha de custo cadastrada" />
                 </TableCell>
               </TableRow>
@@ -624,16 +649,26 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Unidade de Medida</Label>
-          <Input
-            className="w-32"
+          <Select
             value={novaLinha.unidade_medida}
-            onChange={(e) => setNovaLinha({ ...novaLinha, unidade_medida: e.target.value })}
-          />
+            onValueChange={(v) => v && setNovaLinha({ ...novaLinha, unidade_medida: v })}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {UNIDADES_MEDIDA.map((unidade) => (
+                <SelectItem key={unidade} value={unidade}>
+                  {unidade}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Volumetria</Label>
           <Input
-            className="w-32"
+            className="w-28"
             value={novaLinha.volumetria}
             onChange={(e) => setNovaLinha({ ...novaLinha, volumetria: e.target.value })}
           />
@@ -646,12 +681,194 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
             onChange={(valor) => setNovaLinha({ ...novaLinha, custo_unitario: valor })}
           />
         </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Mês de Início</Label>
+          <Input
+            className="w-24"
+            type="number"
+            min={1}
+            value={novaLinha.mes_inicio}
+            onChange={(e) => setNovaLinha({ ...novaLinha, mes_inicio: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Prazo (meses)</Label>
+          <Input
+            className="w-24"
+            type="number"
+            min={1}
+            value={novaLinha.prazo_meses}
+            onChange={(e) => setNovaLinha({ ...novaLinha, prazo_meses: e.target.value })}
+          />
+        </div>
         <Button onClick={adicionar} disabled={salvando}>
           <Plus className="mr-1 h-4 w-4" />
           Adicionar linha
         </Button>
       </div>
+
+      <EditarLinhaCustoDialog
+        versaoId={versaoId}
+        linha={linhaEditando}
+        onClose={() => setLinhaEditando(null)}
+        onSalvo={refetch}
+      />
     </div>
+  );
+}
+
+function EditarLinhaCustoDialog({
+  versaoId,
+  linha,
+  onClose,
+  onSalvo,
+}: {
+  versaoId: string;
+  linha: LinhaCusto | null;
+  onClose: () => void;
+  onSalvo: () => void;
+}) {
+  const [form, setForm] = useState({
+    descricao: "",
+    unidade_medida: "",
+    volumetria: "",
+    custo_unitario: "",
+    mes_inicio: "",
+    prazo_meses: "",
+  });
+  const [linhaCarregadaPara, setLinhaCarregadaPara] = useState<LinhaCusto | null>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  if (linha && linha !== linhaCarregadaPara) {
+    setLinhaCarregadaPara(linha);
+    setForm({
+      descricao: linha.descricao,
+      unidade_medida: linha.unidade_medida,
+      volumetria: linha.volumetria,
+      custo_unitario: linha.custo_unitario,
+      mes_inicio: linha.mes_inicio != null ? String(linha.mes_inicio) : "",
+      prazo_meses: linha.prazo_meses != null ? String(linha.prazo_meses) : "",
+    });
+  }
+
+  async function salvar() {
+    if (!linha) return;
+    setSalvando(true);
+    try {
+      await viabilidadeApi.atualizarLinhaCusto(versaoId, linha.id, {
+        descricao: form.descricao,
+        unidade_medida: form.unidade_medida,
+        volumetria: form.volumetria || "0",
+        custo_unitario: form.custo_unitario || "0",
+        mes_inicio: form.mes_inicio ? Number(form.mes_inicio) : null,
+        prazo_meses: form.prazo_meses ? Number(form.prazo_meses) : null,
+      });
+      toast.success("Linha de custo atualizada.");
+      onClose();
+      onSalvo();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível salvar a linha de custo.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Dialog open={linha !== null} onOpenChange={(aberto) => !aberto && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Editar linha de custo</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Descrição</Label>
+            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Unidade de Medida</Label>
+              <Select
+                value={form.unidade_medida}
+                onValueChange={(v) => v && setForm({ ...form, unidade_medida: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIDADES_MEDIDA.map((unidade) => (
+                    <SelectItem key={unidade} value={unidade}>
+                      {unidade}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Volumetria</Label>
+              <Input
+                disabled={linha?.bloqueado_por_origem || linha?.bloqueado_por_override}
+                value={form.volumetria}
+                onChange={(e) => setForm({ ...form, volumetria: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Custo Unitário</Label>
+              <CurrencyInput
+                disabled={linha?.bloqueado_por_origem}
+                value={form.custo_unitario}
+                onChange={(valor) => setForm({ ...form, custo_unitario: valor })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Mês de Início</Label>
+              <Input
+                type="number"
+                min={1}
+                value={form.mes_inicio}
+                onChange={(e) => setForm({ ...form, mes_inicio: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Prazo (meses)</Label>
+              <Input
+                type="number"
+                min={1}
+                disabled={linha?.bloqueado_por_origem || linha?.bloqueado_por_override}
+                value={form.prazo_meses}
+                onChange={(e) => setForm({ ...form, prazo_meses: e.target.value })}
+              />
+            </div>
+          </div>
+
+          {linha?.bloqueado_por_origem ? (
+            <p className="text-xs text-muted-foreground">
+              Volumetria, Custo Unitário e Prazo são importados de outro módulo e não podem ser alterados aqui.
+            </p>
+          ) : linha?.bloqueado_por_override ? (
+            <p className="text-xs text-muted-foreground">
+              Volumetria e Prazo têm distribuição manual por mês e não podem ser alterados aqui.
+            </p>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando ? "Salvando..." : "Salvar alterações"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -672,6 +889,7 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
     linhaReceitaReferenciaId: RECEITA_BRUTA_TOTAL,
   });
   const [salvando, setSalvando] = useState(false);
+  const [despesaEditando, setDespesaEditando] = useState<DespesaNaoOperacional | null>(null);
 
   function nomeDaLinhaReferencia(linhaId: string | null): string {
     if (!linhaId) return "Receita Bruta Total";
@@ -749,6 +967,9 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => setDespesaEditando(despesa)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" onClick={() => excluir(despesa.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -822,6 +1043,133 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
           Adicionar despesa
         </Button>
       </div>
+
+      <EditarDespesaDialog
+        versaoId={versaoId}
+        despesa={despesaEditando}
+        linhasReceita={linhasReceita ?? []}
+        onClose={() => setDespesaEditando(null)}
+        onSalvo={refetch}
+      />
     </div>
+  );
+}
+
+function EditarDespesaDialog({
+  versaoId,
+  despesa,
+  linhasReceita,
+  onClose,
+  onSalvo,
+}: {
+  versaoId: string;
+  despesa: DespesaNaoOperacional | null;
+  linhasReceita: LinhaReceita[];
+  onClose: () => void;
+  onSalvo: () => void;
+}) {
+  const [form, setForm] = useState({
+    descricao: "",
+    tipo: "despesa" as DespesaTipo,
+    percentual: "",
+    linhaReceitaReferenciaId: RECEITA_BRUTA_TOTAL,
+  });
+  const [despesaCarregadaPara, setDespesaCarregadaPara] = useState<DespesaNaoOperacional | null>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  if (despesa && despesa !== despesaCarregadaPara) {
+    setDespesaCarregadaPara(despesa);
+    setForm({
+      descricao: despesa.descricao,
+      tipo: despesa.tipo,
+      percentual: despesa.percentual,
+      linhaReceitaReferenciaId: despesa.linha_receita_referencia_id ?? RECEITA_BRUTA_TOTAL,
+    });
+  }
+
+  async function salvar() {
+    if (!despesa) return;
+    setSalvando(true);
+    try {
+      await viabilidadeApi.atualizarDespesa(versaoId, despesa.id, {
+        descricao: form.descricao,
+        tipo: form.tipo,
+        percentual: form.percentual || "0",
+        linha_receita_referencia_id:
+          form.linhaReceitaReferenciaId === RECEITA_BRUTA_TOTAL ? null : form.linhaReceitaReferenciaId,
+      });
+      toast.success("Despesa atualizada.");
+      onClose();
+      onSalvo();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível salvar a despesa.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Dialog open={despesa !== null} onOpenChange={(aberto) => !aberto && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Editar despesa não operacional</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Descrição</Label>
+            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Tipo</Label>
+              <Select value={form.tipo} onValueChange={(v) => v && setForm({ ...form, tipo: v as DespesaTipo })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="despesa">Despesa</SelectItem>
+                  <SelectItem value="recuperacao">Recuperação</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Percentual (%)</Label>
+              <PercentInput value={form.percentual} onChange={(fracao) => setForm({ ...form, percentual: fracao })} />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Linha de Receita de Referência</Label>
+            <Select
+              value={form.linhaReceitaReferenciaId}
+              onValueChange={(v) => v && setForm({ ...form, linhaReceitaReferenciaId: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={RECEITA_BRUTA_TOTAL}>Receita Bruta Total</SelectItem>
+                {linhasReceita.map((linha) => (
+                  <SelectItem key={linha.id} value={linha.id}>
+                    {linha.descricao}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando ? "Salvando..." : "Salvar alterações"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
