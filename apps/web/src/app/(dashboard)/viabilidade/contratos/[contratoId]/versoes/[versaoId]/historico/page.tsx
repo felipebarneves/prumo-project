@@ -12,8 +12,7 @@ export default function HistoricoPage() {
         <Clock className="h-8 w-8 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">Em breve</p>
         <p className="max-w-sm text-sm text-muted-foreground">
-          O histórico de versões já pode ser consultado na aba &quot;Histórico de Versões&quot; de Cenários — esta
-          tela dedicada está em desenvolvimento.
+          A linha do tempo de alterações do projeto está em desenvolvimento.
         </p>
       </div>
     </div>

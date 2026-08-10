@@ -133,6 +133,15 @@ export interface Snapshot {
   created_at: string;
 }
 
+export interface SnapshotCreatePayload {
+  tipo: SnapshotTipo;
+  nome: string;
+  versao_a_id: string;
+  versao_b_id?: string | null;
+  ajustes_whatif?: WhatIfPayload | null;
+  resultado: ComparacaoResponse | WhatIfResponse;
+}
+
 // --------------------------------------------------------------------------- Parâmetros (Tela 2)
 
 export interface ParametrosVersao {

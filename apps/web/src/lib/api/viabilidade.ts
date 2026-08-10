@@ -21,6 +21,7 @@ import type {
   ParametrosVersao,
   ResumoDREResponse,
   Snapshot,
+  SnapshotCreatePayload,
   StatusCicloVida,
   Versao,
   ComparacaoResponse,
@@ -92,6 +93,9 @@ export const viabilidadeApi = {
     apiRequest<WhatIfResponse>(`/api/v1/contratos/${contratoId}/whatif`, { method: "POST", body: payload }),
 
   listarSnapshots: (contratoId: string) => apiRequest<Snapshot[]>(`/api/v1/contratos/${contratoId}/snapshots`),
+
+  salvarSnapshot: (contratoId: string, payload: SnapshotCreatePayload) =>
+    apiRequest<Snapshot>(`/api/v1/contratos/${contratoId}/snapshots`, { method: "POST", body: payload }),
 
   excluirSnapshot: (contratoId: string, snapshotId: string) =>
     apiRequest<void>(`/api/v1/contratos/${contratoId}/snapshots/${snapshotId}`, { method: "DELETE" }),
