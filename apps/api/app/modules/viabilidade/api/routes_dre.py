@@ -117,6 +117,7 @@ def resumo_dre(
 ):
     resultado, _, contrato = _calcular_resultado_dre(versao_id, current_user.organization_id)
     meses_por_periodo = {"trimestral": 3, "semestral": 6, "anual": 12}[granularidade.value]
+    data_inicio = contrato["data_inicio"] if isinstance(contrato["data_inicio"], date) else date.fromisoformat(contrato["data_inicio"])
 
     linhas: list[DRELinhaResumo] = []
     for item in _ITENS_SIMPLES + ["ebit_acumulado"]:
@@ -129,15 +130,17 @@ def resumo_dre(
             valor = fatia[-1] if item == "ebit_acumulado" else sum(fatia, Decimal(0))
             periodos.append(
                 DREPeriodoConsolidado(
-                    periodo_label=_rotulo_periodo(granularidade, indice_periodo, contrato["data_inicio"]),
+                    periodo_label=_rotulo_periodo(granularidade, indice_periodo, data_inicio),
                     valor=valor,
                 )
             )
 
-        total = periodos[-1].valor if item == "ebit_acumulado" else sum(serie, Decimal(0))
+        if item == "ebit_acumulado":
+            total = periodos[-1].valor if periodos else Decimal(0)
+        else:
+            total = sum(serie, Decimal(0))
         linhas.append(DRELinhaResumo(item=item, total_projeto=total, periodos=periodos))
 
-    data_inicio = contrato["data_inicio"] if isinstance(contrato["data_inicio"], date) else date.fromisoformat(contrato["data_inicio"])
     fim_contrato = date(data_inicio.year, data_inicio.month, 1) + timedelta(days=31 * contrato["duracao_meses"])
 
     return ResumoDREResponse(

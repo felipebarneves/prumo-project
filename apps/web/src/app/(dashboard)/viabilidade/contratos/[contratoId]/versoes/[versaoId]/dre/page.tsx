@@ -30,6 +30,24 @@ const ROTULOS_ITEM: Record<string, string> = {
 const ITENS_PERCENTUAIS = new Set(["margem_ebitda", "margem_ebit", "margem_liquida"]);
 const ITENS_DESTAQUE = new Set(["ebitda", "ebit", "lucro_liquido"]);
 
+// Ordem de exibição da DRE Detalhada — indicadores (EBIT Acumulado, margens) logo
+// abaixo da linha a que se referem, em vez da ordem de cálculo emitida pela API.
+const ORDEM_DETALHADO = [
+  "receita_operacional_bruta",
+  "deducoes",
+  "receita_operacional_liquida",
+  "custos_operacionais",
+  "ebitda",
+  "margem_ebitda",
+  "despesas_nao_operacionais",
+  "ebit",
+  "ebit_acumulado",
+  "margem_ebit",
+  "irpj",
+  "lucro_liquido",
+  "margem_liquida",
+];
+
 export default function DREPage() {
   const { versaoId } = useParams<{ versaoId: string }>();
 
@@ -67,12 +85,16 @@ function DREDetalhado({ versaoId }: { versaoId: string }) {
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!data) return null;
 
+  const linhasOrdenadas = [...data.linhas].sort(
+    (a, b) => ORDEM_DETALHADO.indexOf(a.item) - ORDEM_DETALHADO.indexOf(b.item)
+  );
+
   return (
     <div className="space-y-3">
       <div className="max-w-full overflow-x-auto rounded-[var(--radius-lg)] border border-border/60">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="[&>th]:text-primary">
               <TableHead className="sticky left-0 bg-card">Item</TableHead>
               <TableHead className="text-right">Total do Projeto</TableHead>
               {data.meses.map((mes) => (
@@ -83,7 +105,7 @@ function DREDetalhado({ versaoId }: { versaoId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.linhas.map((linha) => (
+            {linhasOrdenadas.map((linha) => (
               <TableRow key={linha.item} className={ITENS_DESTAQUE.has(linha.item) ? "font-semibold" : undefined}>
                 <TableCell className="sticky left-0 bg-card">{ROTULOS_ITEM[linha.item] ?? linha.item}</TableCell>
                 <TableCell className="text-right">{formatarValor(linha.item, linha.total_projeto)}</TableCell>
