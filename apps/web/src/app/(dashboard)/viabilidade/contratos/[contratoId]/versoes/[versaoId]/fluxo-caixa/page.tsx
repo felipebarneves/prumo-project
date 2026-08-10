@@ -53,7 +53,7 @@ export default function FluxoCaixaPage() {
           <div className="max-w-full overflow-x-auto rounded-[var(--radius-lg)] border border-border/60">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="[&>th]:text-primary">
                   <TableHead className="sticky left-0 bg-card">Item</TableHead>
                   <TableHead className="text-right">Total do Projeto</TableHead>
                   {data.meses.map((mes) => (

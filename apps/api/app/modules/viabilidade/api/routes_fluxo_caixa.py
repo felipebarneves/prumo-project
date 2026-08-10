@@ -33,6 +33,10 @@ _MAPA_ATRIBUTO = {
     "saldo_caixa_final": "saldo_caixa_final",
 }
 
+# Fluxo Acumulado e Saldo de Caixa Final já são saldos correntes (running balance) —
+# o total do projeto é o valor do último período, não a soma dos períodos.
+_ITENS_SALDO_CORRENTE = {"fluxo_acumulado", "saldo_caixa_final"}
+
 
 @router.get("/{versao_id}/fluxo-caixa", response_model=FluxoCaixaResponse)
 def fluxo_caixa(versao_id: UUID, current_user: CurrentUser = Depends(get_current_user)):
@@ -42,14 +46,14 @@ def fluxo_caixa(versao_id: UUID, current_user: CurrentUser = Depends(get_current
     resultado = calcular_projeto(receitas, custos, despesas, parametros, projeto)
     meses = [m.mes for m in resultado.meses]
 
-    linhas = [
-        FluxoCaixaLinha(
-            item=item,
-            valores_mensais=resultado.serie(_MAPA_ATRIBUTO[item]),
-            total_projeto=sum(resultado.serie(_MAPA_ATRIBUTO[item]), Decimal(0)),
-        )
-        for item in _ITENS
-    ]
+    linhas = []
+    for item in _ITENS:
+        serie = resultado.serie(_MAPA_ATRIBUTO[item])
+        if item in _ITENS_SALDO_CORRENTE:
+            total = serie[-1] if serie else Decimal(0)
+        else:
+            total = sum(serie, Decimal(0))
+        linhas.append(FluxoCaixaLinha(item=item, valores_mensais=serie, total_projeto=total))
 
     return FluxoCaixaResponse(
         versao_id=versao_id,
