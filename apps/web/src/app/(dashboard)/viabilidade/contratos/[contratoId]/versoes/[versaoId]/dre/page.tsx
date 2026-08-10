@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency, formatPercent } from "@/lib/format";
@@ -126,6 +126,37 @@ function DREDetalhado({ versaoId }: { versaoId: string }) {
   );
 }
 
+const OPCOES_PERIODICIDADE: { label: string; valor: GranularidadeResumo }[] = [
+  { label: "12M", valor: "anual" },
+  { label: "6M", valor: "semestral" },
+  { label: "3M", valor: "trimestral" },
+];
+
+function SeletorPeriodicidade({
+  valor,
+  onChange,
+}: {
+  valor: GranularidadeResumo;
+  onChange: (valor: GranularidadeResumo) => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/40 p-1">
+      {OPCOES_PERIODICIDADE.map((opcao) => (
+        <Button
+          key={opcao.valor}
+          type="button"
+          size="sm"
+          variant={valor === opcao.valor ? "default" : "ghost"}
+          className="rounded-full px-3"
+          onClick={() => onChange(opcao.valor)}
+        >
+          {opcao.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
 function ResumoDRE({ versaoId }: { versaoId: string }) {
   const [granularidade, setGranularidade] = useState<GranularidadeResumo>("anual");
   const { data, loading, error, refetch } = useApiResource(
@@ -139,16 +170,7 @@ function ResumoDRE({ versaoId }: { versaoId: string }) {
         <p className="text-sm text-muted-foreground">
           {data ? `${data.inicio_projeto} — ${data.prazo_meses} meses` : ""}
         </p>
-        <Select value={granularidade} onValueChange={(v) => v && setGranularidade(v as GranularidadeResumo)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="trimestral">Trimestral</SelectItem>
-            <SelectItem value="semestral">Semestral</SelectItem>
-            <SelectItem value="anual">Anual</SelectItem>
-          </SelectContent>
-        </Select>
+        <SeletorPeriodicidade valor={granularidade} onChange={setGranularidade} />
       </div>
 
       {loading ? <LoadingState rows={6} /> : null}
@@ -158,7 +180,7 @@ function ResumoDRE({ versaoId }: { versaoId: string }) {
         <div className="max-w-full overflow-x-auto rounded-[var(--radius-lg)] border border-border/60">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="[&>th]:text-primary">
                 <TableHead>Item</TableHead>
                 <TableHead className="text-right">Total do Projeto</TableHead>
                 {data.linhas[0]?.periodos.map((periodo) => (

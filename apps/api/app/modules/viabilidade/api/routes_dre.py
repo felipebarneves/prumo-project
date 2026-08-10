@@ -101,6 +101,15 @@ def dre_detalhado(versao_id: UUID, current_user: CurrentUser = Depends(get_curre
     return DREDetalhadoResponse(versao_id=versao_id, meses=meses, linhas=linhas, nota_irpj=NOTA_IRPJ)
 
 
+# Ordem de exibição do Resumo — espelha a DRE Detalhada (indicadores logo abaixo
+# do item a que se referem), em vez da ordem de cálculo.
+_ORDEM_RESUMO = [
+    "receita_operacional_bruta", "deducoes", "receita_operacional_liquida",
+    "custos_operacionais", "ebitda", "margem_ebitda", "despesas_nao_operacionais",
+    "ebit", "ebit_acumulado", "margem_ebit", "irpj", "lucro_liquido", "margem_liquida",
+]
+
+
 def _rotulo_periodo(granularidade: GranularidadeResumo, indice_periodo: int, data_inicio: date) -> str:
     if granularidade == GranularidadeResumo.ANUAL:
         return str(data_inicio.year + indice_periodo)
@@ -119,27 +128,56 @@ def resumo_dre(
     meses_por_periodo = {"trimestral": 3, "semestral": 6, "anual": 12}[granularidade.value]
     data_inicio = contrato["data_inicio"] if isinstance(contrato["data_inicio"], date) else date.fromisoformat(contrato["data_inicio"])
 
-    linhas: list[DRELinhaResumo] = []
-    for item in _ITENS_SIMPLES + ["ebit_acumulado"]:
-        atributo = "ebit_acumulado" if item == "ebit_acumulado" else _MAPA_ATRIBUTO[item]
-        serie = resultado.serie(atributo)
+    def rotulos_periodos(quantidade: int) -> list[str]:
+        return [_rotulo_periodo(granularidade, i, data_inicio) for i in range(quantidade)]
 
-        periodos: list[DREPeriodoConsolidado] = []
-        for indice_periodo, inicio in enumerate(range(0, len(serie), meses_por_periodo)):
-            fatia = serie[inicio : inicio + meses_por_periodo]
-            valor = fatia[-1] if item == "ebit_acumulado" else sum(fatia, Decimal(0))
-            periodos.append(
-                DREPeriodoConsolidado(
-                    periodo_label=_rotulo_periodo(granularidade, indice_periodo, data_inicio),
-                    valor=valor,
+    linhas_por_item: dict[str, DRELinhaResumo] = {}
+    series_por_item: dict[str, list[Decimal]] = {}
+    for item in _ITENS_SIMPLES:
+        serie = resultado.serie(_MAPA_ATRIBUTO[item])
+        series_por_item[item] = serie
+        rotulos = rotulos_periodos(len(range(0, len(serie), meses_por_periodo)))
+        periodos = [
+            DREPeriodoConsolidado(periodo_label=rotulo, valor=sum(serie[i : i + meses_por_periodo], Decimal(0)))
+            for rotulo, i in zip(rotulos, range(0, len(serie), meses_por_periodo))
+        ]
+        linhas_por_item[item] = DRELinhaResumo(item=item, total_projeto=sum(serie, Decimal(0)), periodos=periodos)
+
+    ebit_acumulado_serie = resultado.serie("ebit_acumulado")
+    rotulos = rotulos_periodos(len(range(0, len(ebit_acumulado_serie), meses_por_periodo)))
+    periodos_ea = [
+        DREPeriodoConsolidado(periodo_label=rotulo, valor=ebit_acumulado_serie[i : i + meses_por_periodo][-1])
+        for rotulo, i in zip(rotulos, range(0, len(ebit_acumulado_serie), meses_por_periodo))
+    ]
+    linhas_por_item["ebit_acumulado"] = DRELinhaResumo(
+        item="ebit_acumulado",
+        total_projeto=periodos_ea[-1].valor if periodos_ea else Decimal(0),
+        periodos=periodos_ea,
+    )
+
+    receita_serie = series_por_item["receita_operacional_bruta"]
+    for item, base_item in [
+        ("margem_ebitda", "ebitda"),
+        ("margem_ebit", "ebit"),
+        ("margem_liquida", "lucro_liquido"),
+    ]:
+        base_serie = series_por_item[base_item]
+        rotulos = rotulos_periodos(len(range(0, len(base_serie), meses_por_periodo)))
+        periodos = [
+            DREPeriodoConsolidado(
+                periodo_label=rotulo,
+                valor=divisao_segura(
+                    sum(base_serie[i : i + meses_por_periodo], Decimal(0)),
+                    sum(receita_serie[i : i + meses_por_periodo], Decimal(0)),
                 )
+                or Decimal(0),
             )
+            for rotulo, i in zip(rotulos, range(0, len(base_serie), meses_por_periodo))
+        ]
+        total = divisao_segura(sum(base_serie, Decimal(0)), sum(receita_serie, Decimal(0))) or Decimal(0)
+        linhas_por_item[item] = DRELinhaResumo(item=item, total_projeto=total, periodos=periodos)
 
-        if item == "ebit_acumulado":
-            total = periodos[-1].valor if periodos else Decimal(0)
-        else:
-            total = sum(serie, Decimal(0))
-        linhas.append(DRELinhaResumo(item=item, total_projeto=total, periodos=periodos))
+    linhas = [linhas_por_item[item] for item in _ORDEM_RESUMO]
 
     fim_contrato = date(data_inicio.year, data_inicio.month, 1) + timedelta(days=31 * contrato["duracao_meses"])
 
