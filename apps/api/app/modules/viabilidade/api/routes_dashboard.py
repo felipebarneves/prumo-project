@@ -5,6 +5,7 @@ docs/api-spec-viabilidade.md seções 7 e 9.
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
@@ -19,6 +20,7 @@ from ..schemas.dashboard import (
     HomeOrganizacaoKPIs,
     HomeOrganizacaoResponse,
 )
+from ..services.calendario import ano_calendario_do_mes_projeto
 from ..services.decimal_utils import divisao_segura
 from ..services.kpi_engine import breakeven_mes, capital_de_giro, payback_mes, tir, tirm, vpl
 from ..services.motor import calcular_projeto
@@ -42,7 +44,13 @@ def dashboard_projeto(versao_id: UUID, current_user: CurrentUser = Depends(get_c
         receita_bruta_total=receita_bruta_total,
         ebitda_total=ebitda_total,
         margem_ebitda=divisao_segura(ebitda_total, receita_bruta_total) or Decimal(0),
-        fluxo_liquido_total=resultado.total("saldo_caixa_final"),
+        # "Fluxo Líquido Total" precisa bater com a linha "Fluxo Líquido Geral" do
+        # Fluxo de Caixa (routes_fluxo_caixa.py) — soma da série mensal, igual lá.
+        # Antes somava "saldo_caixa_final", que é saldo CORRENTE (running balance):
+        # somar meses de um saldo corrente não tem significado financeiro (o mesmo
+        # bug já corrigido no total_projeto do Fluxo de Caixa) e nunca bateria com
+        # nenhum número exibido em nenhuma outra tela.
+        fluxo_liquido_total=resultado.total("fluxo_liquido_geral"),
         vpl=vpl(resultado, parametros.tma),
         tir=tir(resultado),
         tirm=tirm(resultado, parametros.tma, parametros.taxa_reinvestimento),
@@ -52,10 +60,20 @@ def dashboard_projeto(versao_id: UUID, current_user: CurrentUser = Depends(get_c
         custo_financeiro_total=resultado.total("custo_financeiro"),
     )
 
-    inicio_ano = contrato["data_inicio"].year if hasattr(contrato["data_inicio"], "year") else int(str(contrato["data_inicio"])[:4])
+    # Agrupamento por ANO-CALENDÁRIO real de cada mês — nunca `inicio_ano + (mes.mes
+    # - 1) // 12`, que ignora o MÊS de início do contrato (só usa o .year) e por
+    # isso atribui o ano errado a qualquer contrato que não comece em janeiro (ex:
+    # início em março/2026 — o antigo cálculo jogava jan-fev/2027, que são meses 11
+    # e 12 do projeto, no "ano 0" = 2026, quando na verdade já são 2027). Mesma
+    # correção já aplicada ao Resumo da DRE (routes_dre.py) — ver services/calendario.py.
+    data_inicio_contrato = (
+        contrato["data_inicio"]
+        if isinstance(contrato["data_inicio"], date)
+        else date.fromisoformat(str(contrato["data_inicio"]))
+    )
     por_ano_dre: dict[int, list] = defaultdict(list)
     for mes in resultado_dre:
-        ano = inicio_ano + (mes.mes - 1) // 12
+        ano = ano_calendario_do_mes_projeto(data_inicio_contrato, mes.mes)
         por_ano_dre[ano].append(mes)
 
     grafico_dre = [
@@ -70,7 +88,7 @@ def dashboard_projeto(versao_id: UUID, current_user: CurrentUser = Depends(get_c
 
     por_ano_fluxo: dict[int, list] = defaultdict(list)
     for mes in resultado.meses:
-        ano = inicio_ano + (mes.mes - 1) // 12
+        ano = ano_calendario_do_mes_projeto(data_inicio_contrato, mes.mes)
         por_ano_fluxo[ano].append(mes)
 
     grafico_fluxo = [

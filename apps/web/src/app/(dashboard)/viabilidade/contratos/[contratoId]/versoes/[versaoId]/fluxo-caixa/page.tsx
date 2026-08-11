@@ -45,10 +45,17 @@ export default function FluxoCaixaPage() {
       {!loading && !error && data ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            <MetricCard label="Capital de Giro" value={formatCurrency(data.capital_de_giro)} secondary="Pico de necessidade de caixa" />
+            <MetricCard
+              label="Capital de Giro"
+              value={formatCurrency(data.capital_de_giro, { casasDecimais: 0 })}
+              secondary="Pico de necessidade de caixa"
+            />
             <MetricCard
               label="Saldo de Caixa Final"
-              value={formatCurrency(data.linhas.find((l) => l.item === "saldo_caixa_final")?.total_projeto ?? "0")}
+              value={formatCurrency(
+                data.linhas.find((l) => l.item === "saldo_caixa_final")?.total_projeto ?? "0",
+                { casasDecimais: 0 }
+              )}
               secondary="Base de VPL / TIR / TIRM"
             />
           </div>

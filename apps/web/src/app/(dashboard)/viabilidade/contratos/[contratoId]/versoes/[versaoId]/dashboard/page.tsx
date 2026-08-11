@@ -18,7 +18,7 @@ export default function DashboardProjetoPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard do Projeto</h1>
+        <h1 className="text-gold-gradient font-[var(--font-display)] text-2xl font-bold">Dashboard do Projeto</h1>
         <p className="text-sm text-muted-foreground">Resumo executivo — KPIs de viabilidade financeira desta versão.</p>
       </div>
 
@@ -28,12 +28,16 @@ export default function DashboardProjetoPage() {
       {!loading && !error && data ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <MetricCard label="Receita Bruta Total" value={formatCurrency(data.kpis.receita_bruta_total)} />
-            <MetricCard label="EBITDA Total" value={formatCurrency(data.kpis.ebitda_total)} secondary={`Margem ${formatPercent(data.kpis.margem_ebitda)}`} />
-            <MetricCard label="Fluxo Líquido Total" value={formatCurrency(data.kpis.fluxo_liquido_total)} />
-            <MetricCard label="Capital de Giro" value={formatCurrency(data.kpis.capital_de_giro)} />
-            <MetricCard label="Custo Financeiro Total" value={formatCurrency(data.kpis.custo_financeiro_total)} />
-            <MetricCard label="VPL" value={data.kpis.vpl ? formatCurrency(data.kpis.vpl) : "—"} />
+            <MetricCard label="Receita Bruta Total" value={formatCurrency(data.kpis.receita_bruta_total, { casasDecimais: 0 })} />
+            <MetricCard
+              label="EBITDA Total"
+              value={formatCurrency(data.kpis.ebitda_total, { casasDecimais: 0 })}
+              secondary={`Margem ${formatPercent(data.kpis.margem_ebitda)}`}
+            />
+            <MetricCard label="Fluxo Líquido Total" value={formatCurrency(data.kpis.fluxo_liquido_total, { casasDecimais: 0 })} />
+            <MetricCard label="Capital de Giro" value={formatCurrency(data.kpis.capital_de_giro, { casasDecimais: 0 })} />
+            <MetricCard label="Custo Financeiro Total" value={formatCurrency(data.kpis.custo_financeiro_total, { casasDecimais: 0 })} />
+            <MetricCard label="VPL" value={data.kpis.vpl ? formatCurrency(data.kpis.vpl, { casasDecimais: 0 }) : "—"} />
             <MetricCard label="TIR" value={data.kpis.tir ? formatPercent(data.kpis.tir) : "—"} />
             <MetricCard label="TIRM" value={data.kpis.tirm ? formatPercent(data.kpis.tirm) : "—"} />
             <MetricCard label="Payback" value={data.kpis.payback_mes ? formatMonth(data.kpis.payback_mes) : "—"} />

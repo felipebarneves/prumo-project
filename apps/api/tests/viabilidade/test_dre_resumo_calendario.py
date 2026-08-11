@@ -5,10 +5,10 @@ from datetime import date
 from decimal import Decimal
 
 from app.modules.viabilidade.api.routes_dre import (
-    _mes_relativo_para_data,
     _periodos_anuais_calendario,
     _periodos_anuais_calendario_acumulado,
 )
+from app.modules.viabilidade.services.calendario import mes_relativo_para_data as _mes_relativo_para_data
 
 
 class TestMesRelativoParaData:

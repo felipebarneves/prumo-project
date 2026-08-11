@@ -382,7 +382,11 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <MetricCard label="Linhas de Receita" value={formatNumber(data?.length ?? 0)} />
-        <MetricCard label="Total Calculado" value={formatCurrency(totalCalculado)} secondary="Soma das linhas cadastradas" />
+        <MetricCard
+          label="Total Calculado"
+          value={formatCurrency(totalCalculado, { casasDecimais: 0 })}
+          secondary="Soma das linhas cadastradas"
+        />
       </div>
 
       <TableContainer>
@@ -760,7 +764,11 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <MetricCard label="Linhas de Custo" value={formatNumber(data?.length ?? 0)} />
-        <MetricCard label="Total Calculado" value={formatCurrency(totalCalculado)} secondary="Soma das linhas cadastradas" />
+        <MetricCard
+          label="Total Calculado"
+          value={formatCurrency(totalCalculado, { casasDecimais: 0 })}
+          secondary="Soma das linhas cadastradas"
+        />
       </div>
 
       <TableContainer>

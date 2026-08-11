@@ -63,7 +63,7 @@ const LINHAS_METRICAS: { chave: keyof ComparacaoMetricas; label: string; formato
 
 function formatarMetrica(valor: string | number | null, formato: "moeda" | "percentual" | "mes") {
   if (valor === null) return "—";
-  if (formato === "moeda") return formatCurrency(valor);
+  if (formato === "moeda") return formatCurrency(valor, { casasDecimais: 0 });
   if (formato === "percentual") return formatPercent(valor);
   return formatMonth(valor as number);
 }
@@ -391,11 +391,11 @@ function CenariosSalvos({ contratoId }: { contratoId: string }) {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-[var(--radius-md)] bg-muted/40 p-2">
                 <p className="truncate text-xs text-muted-foreground">{tituloA}</p>
-                <p className="font-semibold">{ebitdaA ? formatCurrency(ebitdaA) : "—"}</p>
+                <p className="font-semibold">{ebitdaA ? formatCurrency(ebitdaA, { casasDecimais: 0 }) : "—"}</p>
               </div>
               <div className="rounded-[var(--radius-md)] bg-muted/40 p-2">
                 <p className="truncate text-xs text-muted-foreground">{tituloB}</p>
-                <p className="font-semibold">{ebitdaB ? formatCurrency(ebitdaB) : "—"}</p>
+                <p className="font-semibold">{ebitdaB ? formatCurrency(ebitdaB, { casasDecimais: 0 }) : "—"}</p>
               </div>
             </div>
           </ScenarioCard>

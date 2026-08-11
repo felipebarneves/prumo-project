@@ -18,6 +18,7 @@ from ..schemas.dre import (
     DREPeriodoConsolidado,
     ResumoDREResponse,
 )
+from ..services.calendario import mes_relativo_para_data
 from ..services.decimal_utils import divisao_segura
 from ..services.models import ResultadoProjeto
 from ..services.motor import calcular_projeto
@@ -120,15 +121,6 @@ def _rotulo_periodo(granularidade: GranularidadeResumo, indice_periodo: int) -> 
     return f"S{indice_periodo + 1}"
 
 
-def _mes_relativo_para_data(data_inicio: date, indice_mes: int) -> date:
-    """Mês relativo 0-based (posição na série mensal, mês 1 do projeto = índice 0)
-    convertido para a data-calendário real daquele mês."""
-    total_meses = data_inicio.month - 1 + indice_mes
-    ano = data_inicio.year + total_meses // 12
-    mes = total_meses % 12 + 1
-    return date(ano, mes, 1)
-
-
 def _periodos_anuais_calendario(serie: list[Decimal], data_inicio: date) -> list[DREPeriodoConsolidado]:
     """Agrupa uma série mensal por ANO-CALENDÁRIO real de cada mês — nunca por
     fatiamento fixo `serie[i:i+12]` a partir do índice 0. Um contrato iniciado fora
@@ -142,7 +134,7 @@ def _periodos_anuais_calendario(serie: list[Decimal], data_inicio: date) -> list
     """
     somas_por_ano: dict[int, Decimal] = {}
     for indice, valor in enumerate(serie):
-        ano = _mes_relativo_para_data(data_inicio, indice).year
+        ano = mes_relativo_para_data(data_inicio, indice).year
         somas_por_ano[ano] = somas_por_ano.get(ano, Decimal(0)) + valor
     return [DREPeriodoConsolidado(periodo_label=str(ano), valor=soma) for ano, soma in sorted(somas_por_ano.items())]
 
@@ -153,7 +145,7 @@ def _periodos_anuais_calendario_acumulado(serie: list[Decimal], data_inicio: dat
     mês de cada ano-calendário em vez de somar os meses."""
     ultimo_por_ano: dict[int, Decimal] = {}
     for indice, valor in enumerate(serie):
-        ano = _mes_relativo_para_data(data_inicio, indice).year
+        ano = mes_relativo_para_data(data_inicio, indice).year
         ultimo_por_ano[ano] = valor  # sobrescrito a cada mês — a última atribuição é o último mês do ano
     return [DREPeriodoConsolidado(periodo_label=str(ano), valor=valor) for ano, valor in sorted(ultimo_por_ano.items())]
 
@@ -218,7 +210,7 @@ def resumo_dre(
             somas_base: dict[int, Decimal] = {}
             somas_receita: dict[int, Decimal] = {}
             for indice, (base_mes, receita_mes) in enumerate(zip(base_serie, receita_serie)):
-                ano = _mes_relativo_para_data(data_inicio, indice).year
+                ano = mes_relativo_para_data(data_inicio, indice).year
                 somas_base[ano] = somas_base.get(ano, Decimal(0)) + base_mes
                 somas_receita[ano] = somas_receita.get(ano, Decimal(0)) + receita_mes
             periodos = [
