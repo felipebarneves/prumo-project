@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
 import { Badge } from "@/components/ui/badge";
@@ -27,39 +27,34 @@ import type { DespesaNaoOperacional, DespesaTipo, LinhaCusto, LinhaReceita } fro
 
 const UNIDADES_MEDIDA = ["unitario", "mensal", "hora", "km"] as const;
 
+type AbaParametros = "gerais" | "receita" | "custo" | "despesas";
+
+const ABAS: { label: string; value: AbaParametros }[] = [
+  { label: "Parâmetros Gerais", value: "gerais" },
+  { label: "Receita", value: "receita" },
+  { label: "Custo", value: "custo" },
+  { label: "Despesas Não Operacionais", value: "despesas" },
+];
+
 export default function ParametrosPage() {
   const { versaoId } = useParams<{ versaoId: string }>();
+  const [aba, setAba] = useState<AbaParametros>("gerais");
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Parâmetros de Input</h1>
+        <h1 className="text-gold-gradient font-[var(--font-display)] text-2xl font-bold">Parâmetros de Input</h1>
         <p className="text-sm text-muted-foreground">
           Parâmetros gerais e linhas de Receita, Custo e Despesas Não Operacionais desta versão.
         </p>
       </div>
 
-      <Tabs defaultValue="gerais">
-        <TabsList>
-          <TabsTrigger value="gerais">Parâmetros Gerais</TabsTrigger>
-          <TabsTrigger value="receita">Receita</TabsTrigger>
-          <TabsTrigger value="custo">Custo</TabsTrigger>
-          <TabsTrigger value="despesas">Despesas Não Operacionais</TabsTrigger>
-        </TabsList>
+      <SegmentedControl options={ABAS} value={aba} onChange={setAba} />
 
-        <TabsContent value="gerais" className="pt-4">
-          <ParametrosGeraisForm versaoId={versaoId} />
-        </TabsContent>
-        <TabsContent value="receita" className="pt-4">
-          <TabelaReceita versaoId={versaoId} />
-        </TabsContent>
-        <TabsContent value="custo" className="pt-4">
-          <TabelaCusto versaoId={versaoId} />
-        </TabsContent>
-        <TabsContent value="despesas" className="pt-4">
-          <TabelaDespesas versaoId={versaoId} />
-        </TabsContent>
-      </Tabs>
+      {aba === "gerais" ? <ParametrosGeraisForm versaoId={versaoId} /> : null}
+      {aba === "receita" ? <TabelaReceita versaoId={versaoId} /> : null}
+      {aba === "custo" ? <TabelaCusto versaoId={versaoId} /> : null}
+      {aba === "despesas" ? <TabelaDespesas versaoId={versaoId} /> : null}
     </div>
   );
 }
@@ -105,7 +100,7 @@ function ParametrosGeraisForm({ versaoId }: { versaoId: string }) {
   if (error) return <ErrorState message={error} onRetry={refetch} />;
 
   return (
-    <Card>
+    <Card className="rounded-[var(--radius-lg)]">
       <CardHeader>
         <CardTitle className="text-base">Taxas e Alíquota</CardTitle>
       </CardHeader>
