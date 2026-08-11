@@ -21,11 +21,75 @@ export type ModuloPrumo = "precificacao" | "gestao";
 export type DespesaTipo = "despesa" | "recuperacao";
 export type SnapshotTipo = "comparacao" | "whatif";
 export type GranularidadeResumo = "trimestral" | "semestral" | "anual";
+export type PlanTier = "starter" | "pro_planejamento" | "pro_execucao" | "master";
+export type SubscriptionStatus = "active" | "past_due" | "inactive";
 
 export interface ErrorResponseBody {
   error_code: string;
   message: string;
   details?: Record<string, unknown> | null;
+}
+
+// --------------------------------------------------------------------------- Tela Configurações
+
+export interface OrganizationSettings {
+  id: string;
+  name: string;
+  document_id: string | null;
+  plan_tier: PlanTier;
+  subscription_status: SubscriptionStatus;
+  created_at: string;
+}
+
+export interface OrganizationSettingsUpdatePayload {
+  name: string;
+  document_id: string | null;
+}
+
+export interface OrganizationMember {
+  id: string;
+  user_id: string;
+  full_name: string;
+  email: string | null;
+  role: OrganizationRole;
+  created_at: string;
+}
+
+export interface OrganizationMembersResponse {
+  items: OrganizationMember[];
+  total: number;
+}
+
+export interface PlanCapacity {
+  max_executors: number;
+  max_viewers: number;
+  max_active_contracts: number;
+}
+
+export interface PlanUsage {
+  executors: number;
+  viewers: number;
+  active_contracts: number;
+}
+
+export interface OrganizationSubscription {
+  plan_tier: PlanTier;
+  subscription_status: SubscriptionStatus;
+  capacity: PlanCapacity;
+  usage: PlanUsage;
+}
+
+export interface ConviteCreatePayload {
+  email: string;
+  role: Exclude<OrganizationRole, "owner">;
+}
+
+export interface ConviteCreateResponse {
+  id: string;
+  email: string;
+  role: OrganizationRole;
+  status: string;
+  expires_at: string;
 }
 
 // --------------------------------------------------------------------------- Contratos (Tela 1)

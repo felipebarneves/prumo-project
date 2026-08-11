@@ -12,6 +12,7 @@ from . import (
     routes_dre,
     routes_fluxo_caixa,
     routes_linhas,
+    routes_organization,
     routes_parametros,
     routes_versoes,
 )
@@ -28,3 +29,4 @@ router.include_router(routes_cronograma.router)
 router.include_router(routes_dre.router)
 router.include_router(routes_fluxo_caixa.router)
 router.include_router(routes_dashboard.router)
+router.include_router(routes_organization.router)

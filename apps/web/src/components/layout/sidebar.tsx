@@ -30,7 +30,7 @@ interface NavItem {
   label: string;
   slug: string;
   icon: React.ComponentType<{ className?: string }>;
-  /** true para itens que não dependem de um projeto/versão ativos (ex: Projetos). */
+  /** true para itens que não dependem de um projeto/versão ativos (ex: Projetos, Configurações). */
   global?: boolean;
 }
 
@@ -43,7 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Fluxo de Caixa", slug: "fluxo-caixa", icon: Wallet },
   { label: "Cenários", slug: "cenarios", icon: GitCompareArrows },
   { label: "Histórico", slug: "historico", icon: History },
-  { label: "Configurações", slug: "configuracoes", icon: Settings },
+  { label: "Configurações", slug: "configuracoes", icon: Settings, global: true },
 ];
 
 export function Sidebar() {
@@ -64,13 +64,13 @@ export function Sidebar() {
   }
 
   function hrefDoItem(item: NavItem): string {
-    if (item.global) return "/viabilidade";
+    if (item.global) return item.slug ? `/viabilidade/${item.slug}` : "/viabilidade";
     if (!temProjetoAtivo) return "#";
     return `/viabilidade/contratos/${contratoId}/versoes/${versaoId}/${item.slug}`;
   }
 
   function ativoDoItem(item: NavItem): boolean {
-    if (item.global) return pathname === "/viabilidade";
+    if (item.global) return pathname === hrefDoItem(item);
     return temProjetoAtivo ? pathname.endsWith(`/${item.slug}`) : false;
   }
 

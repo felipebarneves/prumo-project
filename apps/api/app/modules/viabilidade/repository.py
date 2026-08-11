@@ -53,6 +53,36 @@ def contar_membros_por_papel(organization_id: UUID, role: str) -> int:
     return resp.count or 0
 
 
+def get_organizacao_or_404(organization_id: UUID) -> dict[str, Any]:
+    resp = supabase.table("organizations").select("*").eq("id", str(organization_id)).limit(1).execute()
+    if not resp.data:
+        raise _not_found("Organização")
+    return resp.data[0]
+
+
+def atualizar_organizacao(organization_id: UUID, dados: dict[str, Any]) -> dict[str, Any]:
+    resp = (
+        supabase.table("organizations")
+        .update(dados)
+        .eq("id", str(organization_id))
+        .execute()
+    )
+    if not resp.data:
+        raise _not_found("Organização")
+    return resp.data[0]
+
+
+def listar_membros_organizacao(organization_id: UUID) -> list[dict[str, Any]]:
+    resp = (
+        supabase.table("organization_members")
+        .select("id, user_id, role, created_at, profiles(full_name)")
+        .eq("organization_id", str(organization_id))
+        .order("created_at", desc=False)
+        .execute()
+    )
+    return resp.data or []
+
+
 # --------------------------------------------------------------------------- contratos
 
 def get_contrato_or_404(contrato_id: UUID, organization_id: UUID) -> dict[str, Any]:
@@ -542,4 +572,15 @@ def criar_membro_organizacao(organization_id: UUID, user_id: UUID, role: str) ->
         "active_modules": ["viabilidade"],
     }
     resp = supabase.table("organization_members").insert(payload).execute()
+    return resp.data[0]
+
+
+def criar_convite(organization_id: UUID, invited_by: UUID, email: str, role: str) -> dict[str, Any]:
+    payload = {
+        "organization_id": str(organization_id),
+        "email": email,
+        "role": role,
+        "invited_by": str(invited_by),
+    }
+    resp = supabase.table("organization_invites").insert(payload).execute()
     return resp.data[0]

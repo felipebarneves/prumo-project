@@ -8,6 +8,8 @@ import type {
   Contrato,
   ContratoCreatePayload,
   ContratoListResponse,
+  ConviteCreatePayload,
+  ConviteCreateResponse,
   CronogramaResponse,
   DashboardProjetoResponse,
   DespesaNaoOperacional,
@@ -18,6 +20,10 @@ import type {
   LinhaCusto,
   LinhaReceita,
   ModuloPrumo,
+  OrganizationMembersResponse,
+  OrganizationSettings,
+  OrganizationSettingsUpdatePayload,
+  OrganizationSubscription,
   ParametrosVersao,
   ResumoDREResponse,
   Snapshot,
@@ -215,4 +221,18 @@ export const viabilidadeApi = {
     apiRequest<DashboardProjetoResponse>(`/api/v1/versoes/${versaoId}/dashboard`),
 
   obterHomeOrganizacao: () => apiRequest<HomeOrganizacaoResponse>("/api/v1/organizations/me/home"),
+
+  // --------------------------------------------------------------------------- Configurações da Organização
+
+  obterConfiguracoesOrganizacao: () => apiRequest<OrganizationSettings>("/api/v1/organization/settings"),
+
+  atualizarConfiguracoesOrganizacao: (payload: OrganizationSettingsUpdatePayload) =>
+    apiRequest<OrganizationSettings>("/api/v1/organization/settings", { method: "PUT", body: payload }),
+
+  listarMembrosOrganizacao: () => apiRequest<OrganizationMembersResponse>("/api/v1/organization/members"),
+
+  obterAssinaturaOrganizacao: () => apiRequest<OrganizationSubscription>("/api/v1/organization/subscription"),
+
+  convidarMembro: (payload: ConviteCreatePayload) =>
+    apiRequest<ConviteCreateResponse>("/api/v1/convites", { method: "POST", body: payload }),
 };

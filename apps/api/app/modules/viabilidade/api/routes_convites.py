@@ -13,13 +13,20 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from supabase_auth.errors import AuthApiError
 
 from app.core.supabase import supabase
 from .. import repository
 from ..schemas.common import ErrorCode, OrganizationRole
-from ..schemas.convites import ConviteAceitarRequest, ConviteAceitarResponse, ConviteDetalheResponse
+from ..schemas.convites import (
+    ConviteAceitarRequest,
+    ConviteAceitarResponse,
+    ConviteCreateRequest,
+    ConviteCreateResponse,
+    ConviteDetalheResponse,
+)
+from .deps import CurrentUser, require_owner
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +38,25 @@ def _erro(status_code: int, error_code: ErrorCode | str, message: str) -> HTTPEx
     # Enum), não em "X" — usar .value explicitamente para o código real da API.
     codigo = error_code.value if isinstance(error_code, ErrorCode) else str(error_code)
     return HTTPException(status_code=status_code, detail={"error_code": codigo, "message": message})
+
+
+@router.post("", response_model=ConviteCreateResponse, status_code=status.HTTP_201_CREATED)
+def criar_convite(payload: ConviteCreateRequest, current_user: CurrentUser = Depends(require_owner)):
+    """Tela de Configurações — aba Membros e Permissões, modal '+ Convidar Membro'.
+    Gate de capacidade por papel (PRD 3.1.2/3.10) — mesmo padrão de limite de
+    Contratos Ativos em routes_contratos.criar_contrato."""
+    capacidade = repository.get_plan_capacity(current_user.plan_tier)
+    limite = capacidade["max_executors"] if payload.role == OrganizationRole.EXECUTOR else capacidade["max_viewers"]
+    atuais = repository.contar_membros_por_papel(current_user.organization_id, payload.role.value)
+    if atuais >= limite:
+        raise _erro(
+            status.HTTP_403_FORBIDDEN,
+            ErrorCode.LIMITE_PLANO_EXCEDIDO,
+            "Você atingiu o limite de usuários deste papel no seu plano. Faça upgrade para convidar mais membros.",
+        )
+
+    convite = repository.criar_convite(current_user.organization_id, current_user.user_id, payload.email, payload.role.value)
+    return ConviteCreateResponse(**convite)
 
 
 def _buscar_convite_valido(token: UUID) -> dict:
