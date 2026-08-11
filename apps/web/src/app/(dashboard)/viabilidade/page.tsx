@@ -19,46 +19,48 @@ import { ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import type { StatusCicloVida } from "@/lib/types/viabilidade";
 
-/** Funil comercial da Tela 1 — opções oferecidas na edição de status. Valores legados
- * (contrato_assinado/em_execucao/encerrado/cancelado) não aparecem aqui: só existem no
- * enum para não invalidar linhas antigas, mas não são mais um destino válido de edição. */
+/** Ciclo de vida do contrato — opções oferecidas na edição de status da Tela 1.
+ * Os estágios de funil comercial (em_elaboracao/proposta_enviada/em_negociacao/
+ * aprovado_fechado/perdido_cancelado) continuam válidos no enum (ver StatusCicloVida
+ * em lib/types/viabilidade.ts) mas não são mais oferecidos aqui — este é o conjunto
+ * de status ativo, não um extra sobre o outro. */
 const STATUS_OPCOES: { value: StatusCicloVida; label: string }[] = [
   { value: "em_prospeccao", label: "Em prospecção" },
-  { value: "em_elaboracao", label: "Em elaboração" },
-  { value: "proposta_enviada", label: "Proposta enviada" },
-  { value: "em_negociacao", label: "Em negociação" },
-  { value: "aprovado_fechado", label: "Aprovado/Fechado" },
-  { value: "perdido_cancelado", label: "Perdido/Cancelado" },
+  { value: "contrato_assinado", label: "Contrato assinado" },
+  { value: "em_execucao", label: "Em execução" },
+  { value: "encerrado", label: "Contrato encerrado" },
+  { value: "cancelado", label: "Cancelado" },
 ];
 
 const STATUS_LABELS: Record<StatusCicloVida, string> = {
   em_prospeccao: "Em prospecção",
+  contrato_assinado: "Contrato assinado",
+  em_execucao: "Em execução",
+  encerrado: "Contrato encerrado",
+  cancelado: "Cancelado",
+  // Funil comercial — não oferecido mais na edição, ver comentário de STATUS_OPCOES.
   em_elaboracao: "Em elaboração",
   proposta_enviada: "Proposta enviada",
   em_negociacao: "Em negociação",
   aprovado_fechado: "Aprovado/Fechado",
   perdido_cancelado: "Perdido/Cancelado",
-  // Legado — ver StatusCicloVida em lib/types/viabilidade.ts.
-  contrato_assinado: "Contrato assinado",
-  em_execucao: "Em execução",
-  encerrado: "Encerrado",
-  cancelado: "Cancelado",
 };
 
-/** Cor distinta por estágio do funil — cinza/azul nos estágios iniciais, dourado nos
- * intermediários (proposta/negociação), verde no fechamento, vermelho na perda. Estados
- * legados caem no cinza neutro (não são mais alcançáveis pela UI, só exibição de dados antigos). */
+/** Cor distinta por status: azul/cinza na prospecção, dourado claro no contrato
+ * assinado, verde em destaque na execução, roxo/escuro no encerramento, vermelho
+ * no cancelamento. */
 const STATUS_CLASSES: Record<StatusCicloVida, string> = {
   em_prospeccao: "border-slate-500/40 bg-slate-500/15 text-slate-300",
+  contrato_assinado: "border-primary/40 bg-primary/15 text-primary",
+  em_execucao: "border-emerald-500/50 bg-emerald-500/20 text-emerald-400",
+  encerrado: "border-violet-500/40 bg-violet-500/15 text-violet-400",
+  cancelado: "border-destructive/40 bg-destructive/15 text-destructive",
+  // Funil comercial — mantidos por compatibilidade de tipo, não exibidos na Tela 1.
   em_elaboracao: "border-sky-500/40 bg-sky-500/15 text-sky-400",
   proposta_enviada: "border-primary/40 bg-primary/15 text-primary",
   em_negociacao: "border-primary/60 bg-primary/25 text-primary",
   aprovado_fechado: "border-emerald-500/40 bg-emerald-500/15 text-emerald-400",
   perdido_cancelado: "border-destructive/40 bg-destructive/15 text-destructive",
-  contrato_assinado: "border-slate-500/40 bg-slate-500/15 text-slate-300",
-  em_execucao: "border-slate-500/40 bg-slate-500/15 text-slate-300",
-  encerrado: "border-slate-500/40 bg-slate-500/15 text-slate-300",
-  cancelado: "border-destructive/40 bg-destructive/15 text-destructive",
 };
 
 export default function ProjetosPage() {

@@ -25,23 +25,30 @@ class RegimeTributario(str, Enum):
 
 
 class StatusCicloVida(str, Enum):
-    """Pipeline de status editável na Tela 1 (Projetos). `CONTRATO_ASSINADO`/
-    `EM_EXECUCAO`/`ENCERRADO` são mantidos apenas para não invalidar linhas
-    já persistidas com esses valores (Postgres ENUM não permite remover
-    valores) — não são mais oferecidos como opção na UI, que agora usa o
-    funil comercial abaixo."""
+    """Status de ciclo de vida do contrato — editável na Tela 1 (Projetos).
+
+    O conjunto ativo, oferecido na UI, é: EM_PROSPECCAO, CONTRATO_ASSINADO,
+    EM_EXECUCAO, ENCERRADO, CANCELADO (ver STATUS_OPCOES em
+    apps/web/src/app/(dashboard)/viabilidade/page.tsx).
+
+    EM_ELABORACAO/PROPOSTA_ENVIADA/EM_NEGOCIACAO/APROVADO_FECHADO/
+    PERDIDO_CANCELADO foram um funil comercial alternativo adicionado e depois
+    desativado na UI — permanecem no enum (e no ENUM do Postgres, que não
+    permite remover valores) só para não quebrar contratos que já os usem;
+    não são mais um destino de edição válido a partir da tabela de Projetos.
+    """
 
     EM_PROSPECCAO = "em_prospeccao"
+    CONTRATO_ASSINADO = "contrato_assinado"
+    EM_EXECUCAO = "em_execucao"
+    ENCERRADO = "encerrado"
+    CANCELADO = "cancelado"
+    # Desativados na UI — ver docstring acima.
     EM_ELABORACAO = "em_elaboracao"
     PROPOSTA_ENVIADA = "proposta_enviada"
     EM_NEGOCIACAO = "em_negociacao"
     APROVADO_FECHADO = "aprovado_fechado"
     PERDIDO_CANCELADO = "perdido_cancelado"
-    # Legado — pré-existentes na migration 00003, preservados por compatibilidade.
-    CONTRATO_ASSINADO = "contrato_assinado"
-    EM_EXECUCAO = "em_execucao"
-    ENCERRADO = "encerrado"
-    CANCELADO = "cancelado"
 
 
 class PrazoPagamento(int, Enum):
