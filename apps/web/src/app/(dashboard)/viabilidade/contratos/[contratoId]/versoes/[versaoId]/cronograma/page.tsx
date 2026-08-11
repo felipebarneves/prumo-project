@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useRef, useState } from "react";
-import { RotateCcw, Save } from "lucide-react";
+import { AlertTriangle, RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,16 @@ export default function CronogramaPage() {
       <SegmentedControl options={ABAS_CRONOGRAMA} value={aba} onChange={setAba} />
 
       <div className="pt-2">
-        <CronogramaTabela versaoId={versaoId} tipo={aba} dataInicio={contrato?.data_inicio} />
+        {/* key={aba} força o React a desmontar/remontar ao trocar de aba — sem
+            isso, `CronogramaTabela` é a mesma instância de componente em ambas
+            as abas (mesma posição na árvore) e seu estado local de rascunho
+            (editando/resetsPendentes) vazava de uma aba para a outra: editar uma
+            célula em Receita e trocar para Custo sem salvar deixava o botão
+            "Salvar Cronograma" marcado como sujo por edições que não pertencem
+            à aba visível — e salvar nesse estado tentava aplicar essas edições
+            de Receita via atualizarCelulasCusto, que falha silenciosamente (os
+            ids de linha não existem em Custo) e ainda assim mostrava sucesso. */}
+        <CronogramaTabela key={aba} versaoId={versaoId} tipo={aba} dataInicio={contrato?.data_inicio} />
       </div>
     </div>
   );
@@ -194,12 +203,25 @@ function CronogramaTabela({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button onClick={salvarCronograma} disabled={!temEdicoes || salvando}>
-          <Save className="mr-1.5 h-4 w-4" />
-          {salvando ? "Salvando..." : "Salvar Cronograma"}
-        </Button>
-      </div>
+      {temEdicoes ? (
+        <div className="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-primary/40 bg-primary/10 px-4 py-2.5 text-sm text-primary">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>Você tem alterações não salvas neste cronograma.</span>
+          </div>
+          <Button onClick={salvarCronograma} disabled={salvando} size="sm" className="shrink-0">
+            <Save className="mr-1.5 h-4 w-4" />
+            {salvando ? "Salvando..." : "Salvar Cronograma"}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex justify-end">
+          <Button onClick={salvarCronograma} disabled={!temEdicoes || salvando}>
+            <Save className="mr-1.5 h-4 w-4" />
+            {salvando ? "Salvando..." : "Salvar Cronograma"}
+          </Button>
+        </div>
+      )}
       {data.linhas.map((linha) => (
         <div key={linha.linha_id} className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
           <div className="flex items-center justify-between gap-4 border-b border-border/60 bg-card/40 px-4 py-2">
