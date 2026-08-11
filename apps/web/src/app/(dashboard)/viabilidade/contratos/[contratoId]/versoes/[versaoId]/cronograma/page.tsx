@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { MonthTableHead } from "@/components/finance/month-table-head";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -33,8 +34,9 @@ const ABAS_CRONOGRAMA: { label: string; value: AbaCronograma }[] = [
  * Cronograma" — sem recálculo/round-trip por célula.
  */
 export default function CronogramaPage() {
-  const { versaoId } = useParams<{ versaoId: string }>();
+  const { contratoId, versaoId } = useParams<{ contratoId: string; versaoId: string }>();
   const [aba, setAba] = useState<AbaCronograma>("receita");
+  const { data: contrato } = useApiResource(() => viabilidadeApi.obterContrato(contratoId), [contratoId]);
 
   return (
     <div className="space-y-6">
@@ -50,7 +52,7 @@ export default function CronogramaPage() {
       <SegmentedControl options={ABAS_CRONOGRAMA} value={aba} onChange={setAba} />
 
       <div className="pt-2">
-        <CronogramaTabela versaoId={versaoId} tipo={aba} />
+        <CronogramaTabela versaoId={versaoId} tipo={aba} dataInicio={contrato?.data_inicio} />
       </div>
     </div>
   );
@@ -58,7 +60,15 @@ export default function CronogramaPage() {
 
 const REPLICAR_REGEX = /^=(-?\d+(?:[.,]\d+)?)>$/;
 
-function CronogramaTabela({ versaoId, tipo }: { versaoId: string; tipo: "receita" | "custo" }) {
+function CronogramaTabela({
+  versaoId,
+  tipo,
+  dataInicio,
+}: {
+  versaoId: string;
+  tipo: "receita" | "custo";
+  dataInicio: string | undefined;
+}) {
   const { data, loading, error, refetch } = useApiResource<CronogramaResponse>(
     () => (tipo === "receita" ? viabilidadeApi.obterCronogramaReceita(versaoId) : viabilidadeApi.obterCronogramaCusto(versaoId)),
     [versaoId, tipo]
@@ -191,9 +201,7 @@ function CronogramaTabela({ versaoId, tipo }: { versaoId: string; tipo: "receita
                 <TableRow>
                   <TableHead className="text-center">Totalizador</TableHead>
                   {data.meses.map((mes) => (
-                    <TableHead key={mes} className="text-center">
-                      {mes}
-                    </TableHead>
+                    <MonthTableHead key={mes} mes={mes} dataInicio={dataInicio} className="text-center" />
                   ))}
                 </TableRow>
               </TableHeader>
@@ -203,7 +211,8 @@ function CronogramaTabela({ versaoId, tipo }: { versaoId: string; tipo: "receita
                     <p className="font-medium">{formatNumber(linha.total_linha)}</p>
                     <p className="text-xs text-muted-foreground">
                       {formatCurrency(
-                        linha.celulas.reduce((soma, c) => soma + Number(c.valor_calculado ?? 0), 0)
+                        linha.celulas.reduce((soma, c) => soma + Number(c.valor_calculado ?? 0), 0),
+                        { casasDecimais: 0 }
                       )}
                     </p>
                   </TableCell>
@@ -227,7 +236,9 @@ function CronogramaTabela({ versaoId, tipo }: { versaoId: string; tipo: "receita
                           onChange={(e) => handleChange(linha, celula, e.target.value)}
                           onPaste={(e) => handlePaste(e, linha, celula)}
                         />
-                        <p className="mt-1 text-xs text-muted-foreground">{formatCurrency(celula.valor_calculado)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatCurrency(celula.valor_calculado, { casasDecimais: 0 })}
+                        </p>
                       </TableCell>
                     );
                   })}

@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
 import { MetricCard } from "@/components/finance/metric-card";
+import { MonthTableHead } from "@/components/finance/month-table-head";
 import { ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
@@ -25,8 +26,9 @@ const ROTULOS_ITEM: Record<string, string> = {
 const ITENS_DESTAQUE = new Set(["fluxo_liquido_geral", "fluxo_acumulado", "saldo_caixa_final"]);
 
 export default function FluxoCaixaPage() {
-  const { versaoId } = useParams<{ versaoId: string }>();
+  const { contratoId, versaoId } = useParams<{ contratoId: string; versaoId: string }>();
   const { data, loading, error, refetch } = useApiResource(() => viabilidadeApi.obterFluxoCaixa(versaoId), [versaoId]);
+  const { data: contrato } = useApiResource(() => viabilidadeApi.obterContrato(contratoId), [contratoId]);
 
   return (
     <div className="space-y-6">
@@ -57,19 +59,19 @@ export default function FluxoCaixaPage() {
                 <TableHead className="sticky left-0 bg-card">Item</TableHead>
                 <TableHead className="text-right">Total do Projeto</TableHead>
                 {data.meses.map((mes) => (
-                  <TableHead key={mes} className="text-right">
-                    Mês {mes}
-                  </TableHead>
+                  <MonthTableHead key={mes} mes={mes} dataInicio={contrato?.data_inicio} />
                 ))}
               </TableHeaderGold>
               <TableBody>
                 {data.linhas.map((linha) => (
                   <TableRow key={linha.item} className={ITENS_DESTAQUE.has(linha.item) ? "font-semibold" : undefined}>
                     <TableCell className="sticky left-0 bg-card">{ROTULOS_ITEM[linha.item] ?? linha.item}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(linha.total_projeto)}</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(linha.total_projeto, { casasDecimais: 0 })}
+                    </TableCell>
                     {linha.valores_mensais.map((valor, index) => (
                       <TableCell key={index} className="text-right">
-                        {formatCurrency(valor)}
+                        {formatCurrency(valor, { casasDecimais: 0 })}
                       </TableCell>
                     ))}
                   </TableRow>

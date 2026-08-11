@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { MonthTableHead } from "@/components/finance/month-table-head";
 import { ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
@@ -56,8 +57,9 @@ const ABAS_DRE: { label: string; value: AbaDRE }[] = [
 ];
 
 export default function DREPage() {
-  const { versaoId } = useParams<{ versaoId: string }>();
+  const { contratoId, versaoId } = useParams<{ contratoId: string; versaoId: string }>();
   const [aba, setAba] = useState<AbaDRE>("detalhado");
+  const { data: contrato } = useApiResource(() => viabilidadeApi.obterContrato(contratoId), [contratoId]);
 
   return (
     <div className="space-y-6">
@@ -71,7 +73,7 @@ export default function DREPage() {
       <SegmentedControl options={ABAS_DRE} value={aba} onChange={setAba} />
 
       <div className="pt-2">
-        {aba === "detalhado" ? <DREDetalhado versaoId={versaoId} /> : null}
+        {aba === "detalhado" ? <DREDetalhado versaoId={versaoId} dataInicio={contrato?.data_inicio} /> : null}
         {aba === "resumo" ? <ResumoDRE versaoId={versaoId} /> : null}
       </div>
     </div>
@@ -79,10 +81,10 @@ export default function DREPage() {
 }
 
 function formatarValor(item: string, valor: string) {
-  return ITENS_PERCENTUAIS.has(item) ? formatPercent(valor) : formatCurrency(valor);
+  return ITENS_PERCENTUAIS.has(item) ? formatPercent(valor) : formatCurrency(valor, { casasDecimais: 0 });
 }
 
-function DREDetalhado({ versaoId }: { versaoId: string }) {
+function DREDetalhado({ versaoId, dataInicio }: { versaoId: string; dataInicio: string | undefined }) {
   const { data, loading, error, refetch } = useApiResource(() => viabilidadeApi.obterDREDetalhado(versaoId), [versaoId]);
 
   if (loading) return <LoadingState rows={6} />;
@@ -101,9 +103,7 @@ function DREDetalhado({ versaoId }: { versaoId: string }) {
             <TableHead className="sticky left-0 bg-card">Item</TableHead>
             <TableHead className="text-right">Total do Projeto</TableHead>
             {data.meses.map((mes) => (
-              <TableHead key={mes} className="text-right">
-                Mês {mes}
-              </TableHead>
+              <MonthTableHead key={mes} mes={mes} dataInicio={dataInicio} />
             ))}
           </TableHeaderGold>
           <TableBody>
