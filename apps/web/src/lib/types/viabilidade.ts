@@ -115,6 +115,7 @@ export interface Contrato {
   moeda: "BRL";
   codigo_interno: string | null;
   segmento_cliente_final: string | null;
+  observacoes: string | null;
   arquivado_em: string | null;
   modulos_vinculados: ModuloPrumo[];
   versao_inicial_id: string;
@@ -150,6 +151,7 @@ export interface ContratoCreatePayload {
   status_ciclo_vida?: StatusCicloVida;
   codigo_interno?: string | null;
   segmento_cliente_final?: string | null;
+  observacoes?: string | null;
 }
 
 export interface ContratoUpdatePayload {
@@ -160,6 +162,7 @@ export interface ContratoUpdatePayload {
   nome_contrato?: string;
   prazo_pagamento_dias?: PrazoPagamento;
   status_ciclo_vida?: StatusCicloVida;
+  observacoes?: string | null;
   codigo_interno?: string | null;
   segmento_cliente_final?: string | null;
 }

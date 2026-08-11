@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -23,7 +24,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
 import { ApiError } from "@/lib/api/client";
-import type { DespesaNaoOperacional, DespesaTipo, LinhaCusto, LinhaReceita } from "@/lib/types/viabilidade";
+import type { DespesaNaoOperacional, DespesaTipo, LinhaCusto, LinhaReceita, PrazoPagamento } from "@/lib/types/viabilidade";
 
 const UNIDADES_MEDIDA = ["unitario", "mensal", "hora", "km"] as const;
 
@@ -37,7 +38,7 @@ const ABAS: { label: string; value: AbaParametros }[] = [
 ];
 
 export default function ParametrosPage() {
-  const { versaoId } = useParams<{ versaoId: string }>();
+  const { contratoId, versaoId } = useParams<{ contratoId: string; versaoId: string }>();
   const [aba, setAba] = useState<AbaParametros>("gerais");
 
   return (
@@ -51,11 +52,181 @@ export default function ParametrosPage() {
 
       <SegmentedControl options={ABAS} value={aba} onChange={setAba} />
 
-      {aba === "gerais" ? <ParametrosGeraisForm versaoId={versaoId} /> : null}
+      {aba === "gerais" ? (
+        <div className="space-y-4">
+          <InformacoesGeraisForm contratoId={contratoId} versaoId={versaoId} />
+          <ParametrosGeraisForm versaoId={versaoId} />
+        </div>
+      ) : null}
       {aba === "receita" ? <TabelaReceita versaoId={versaoId} /> : null}
       {aba === "custo" ? <TabelaCusto versaoId={versaoId} /> : null}
       {aba === "despesas" ? <TabelaDespesas versaoId={versaoId} /> : null}
     </div>
+  );
+}
+
+const PRAZOS_PAGAMENTO: { value: PrazoPagamento; label: string }[] = [
+  { value: 30, label: "30 dias" },
+  { value: 60, label: "60 dias" },
+  { value: 90, label: "90 dias" },
+];
+
+/**
+ * Card "Informações Gerais" — espelha 100% dos campos coletados na tela de
+ * cadastro inicial (NovoProjetoDialog): Nome do Projeto, Cliente, Nome da
+ * Versão, Data de Início, Duração, Prazo de Pagamento e Observações. Nome do
+ * Projeto/Cliente/Data/Duração/Prazo vivem em `contratos` (PATCH /api/v1/
+ * contratos/{id}, já existente); Nome da Versão vive em `versoes` (PATCH
+ * /api/v1/contratos/{id}/versoes/{id}, já existente) — dois recursos
+ * diferentes, dois PATCHs, um único botão Salvar dispara ambos.
+ *
+ * Prazo de Pagamento não tem opção "personalizado": a coluna
+ * `contratos.prazo_pagamento_dias` tem `CHECK (... IN (30, 60, 90))` no banco
+ * porque o Fluxo de Caixa desloca a Receita por esse prazo em dias corridos —
+ * um valor arbitrário exigiria validar a lógica de deslocamento do zero, fora
+ * do escopo desta tela.
+ */
+function InformacoesGeraisForm({ contratoId, versaoId }: { contratoId: string; versaoId: string }) {
+  const { data: contrato, loading: loadingContrato, error: errorContrato, refetch: refetchContrato } = useApiResource(
+    () => viabilidadeApi.obterContrato(contratoId),
+    [contratoId]
+  );
+  const { data: versoes, loading: loadingVersoes, error: errorVersoes, refetch: refetchVersoes } = useApiResource(
+    () => viabilidadeApi.listarVersoes(contratoId),
+    [contratoId]
+  );
+  const versaoAtual = versoes?.find((v) => v.id === versaoId);
+
+  const [form, setForm] = useState({
+    nome_projeto: "",
+    cliente: "",
+    nome_versao: "",
+    data_inicio: "",
+    duracao_meses: 0,
+    prazo_pagamento_dias: 30 as PrazoPagamento,
+    observacoes: "",
+  });
+  const [salvando, setSalvando] = useState(false);
+
+  // Ajuste de estado durante a renderização (mesmo padrão de ParametrosGeraisForm)
+  // — sincroniza o form com contrato + versão assim que os dois chegam, sem useEffect.
+  const [carregadoPara, setCarregadoPara] = useState<string | null>(null);
+  const chaveAtual = contrato && versaoAtual ? `${contrato.id}:${versaoAtual.id}` : null;
+  if (contrato && versaoAtual && chaveAtual !== carregadoPara) {
+    setCarregadoPara(chaveAtual);
+    setForm({
+      nome_projeto: contrato.nome_projeto,
+      cliente: contrato.cliente,
+      nome_versao: versaoAtual.nome_versao,
+      data_inicio: contrato.data_inicio,
+      duracao_meses: contrato.duracao_meses,
+      prazo_pagamento_dias: contrato.prazo_pagamento_dias,
+      observacoes: contrato.observacoes ?? "",
+    });
+  }
+
+  async function salvar() {
+    if (!form.nome_projeto.trim() || !form.cliente.trim() || !form.nome_versao.trim()) {
+      toast.error("Preencha Nome do Projeto, Cliente e Nome da Versão.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      await Promise.all([
+        viabilidadeApi.atualizarContrato(contratoId, {
+          nome_projeto: form.nome_projeto.trim(),
+          cliente: form.cliente.trim(),
+          data_inicio: form.data_inicio,
+          duracao_meses: form.duracao_meses,
+          prazo_pagamento_dias: form.prazo_pagamento_dias,
+          observacoes: form.observacoes.trim() || null,
+        }),
+        versaoAtual && form.nome_versao.trim() !== versaoAtual.nome_versao
+          ? viabilidadeApi.renomearVersao(contratoId, versaoId, form.nome_versao.trim())
+          : Promise.resolve(),
+      ]);
+      toast.success("Informações gerais salvas.");
+      refetchContrato();
+      refetchVersoes();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível salvar as informações gerais.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (loadingContrato || loadingVersoes) return <LoadingState rows={3} />;
+  if (errorContrato) return <ErrorState message={errorContrato} onRetry={refetchContrato} />;
+  if (errorVersoes) return <ErrorState message={errorVersoes} onRetry={refetchVersoes} />;
+
+  return (
+    <Card className="rounded-[var(--radius-lg)]">
+      <CardHeader>
+        <CardTitle className="text-base">Informações Gerais</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label>Nome do Projeto</Label>
+          <Input value={form.nome_projeto} onChange={(e) => setForm({ ...form, nome_projeto: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Cliente</Label>
+          <Input value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Nome da Versão</Label>
+          <Input value={form.nome_versao} onChange={(e) => setForm({ ...form, nome_versao: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Mês/Ano de Início</Label>
+          <Input
+            type="date"
+            value={form.data_inicio}
+            onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Duração (meses)</Label>
+          <Input
+            type="number"
+            min={1}
+            value={form.duracao_meses || ""}
+            onChange={(e) => setForm({ ...form, duracao_meses: e.target.value === "" ? 0 : Number(e.target.value) })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Prazo de Pagamento</Label>
+          <Select
+            value={String(form.prazo_pagamento_dias)}
+            onValueChange={(v) => v && setForm({ ...form, prazo_pagamento_dias: Number(v) as PrazoPagamento })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PRAZOS_PAGAMENTO.map((opcao) => (
+                <SelectItem key={opcao.value} value={String(opcao.value)}>
+                  {opcao.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>Observações</Label>
+          <Textarea
+            value={form.observacoes}
+            onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+            placeholder="Notas livres sobre o projeto — não entram em nenhum cálculo."
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando ? "Salvando..." : "Salvar informações gerais"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

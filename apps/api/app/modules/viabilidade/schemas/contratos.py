@@ -21,6 +21,7 @@ class ContratoCreateRequest(BaseModel):
     status_ciclo_vida: StatusCicloVida = StatusCicloVida.EM_PROSPECCAO
     codigo_interno: str | None = None
     segmento_cliente_final: str | None = None
+    observacoes: str | None = None
 
 
 class ContratoResponse(BaseModel):
@@ -37,6 +38,7 @@ class ContratoResponse(BaseModel):
     moeda: str = "BRL"
     codigo_interno: str | None
     segmento_cliente_final: str | None
+    observacoes: str | None = None
     arquivado_em: datetime | None
     modulos_vinculados: list[ModuloPrumo]
     versao_inicial_id: UUID
@@ -55,6 +57,7 @@ class ContratoUpdateRequest(BaseModel):
     status_ciclo_vida: StatusCicloVida | None = None
     codigo_interno: str | None = None
     segmento_cliente_final: str | None = None
+    observacoes: str | None = None
 
 
 class ContratoListQuery(BaseModel):
