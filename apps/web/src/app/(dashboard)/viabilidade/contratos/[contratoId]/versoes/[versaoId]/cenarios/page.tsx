@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { PercentInput } from "@/components/finance/percent-input";
 import { ScenarioCard } from "@/components/finance/scenario-card";
 import { VersionSelect } from "@/components/finance/version-select";
@@ -21,32 +21,32 @@ import { viabilidadeApi } from "@/lib/api/viabilidade";
 import { ApiError } from "@/lib/api/client";
 import type { ComparacaoMetricas, Snapshot } from "@/lib/types/viabilidade";
 
+type AbaCenarios = "comparar" | "whatif" | "salvos";
+
+const ABAS_CENARIOS: { label: string; value: AbaCenarios }[] = [
+  { label: "Comparar Versões", value: "comparar" },
+  { label: "Simulação What-If", value: "whatif" },
+  { label: "Cenários Salvos", value: "salvos" },
+];
+
 export default function CenariosPage() {
   const { contratoId, versaoId } = useParams<{ contratoId: string; versaoId: string }>();
+  const [aba, setAba] = useState<AbaCenarios>("comparar");
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Cenários / What-If</h1>
+        <h1 className="text-gold-gradient font-[var(--font-display)] text-2xl font-bold">Cenários / What-If</h1>
         <p className="text-sm text-muted-foreground">Compare versões e simule ajustes paramétricos.</p>
       </div>
 
-      <Tabs defaultValue="comparar">
-        <TabsList>
-          <TabsTrigger value="comparar">Comparar Versões</TabsTrigger>
-          <TabsTrigger value="whatif">Simulação What-If</TabsTrigger>
-          <TabsTrigger value="salvos">Cenários Salvos</TabsTrigger>
-        </TabsList>
-        <TabsContent value="comparar" className="pt-4">
-          <CompararVersoes contratoId={contratoId} versaoAtualId={versaoId} />
-        </TabsContent>
-        <TabsContent value="whatif" className="pt-4">
-          <SimulacaoWhatIf contratoId={contratoId} versaoAtualId={versaoId} />
-        </TabsContent>
-        <TabsContent value="salvos" className="pt-4">
-          <CenariosSalvos contratoId={contratoId} />
-        </TabsContent>
-      </Tabs>
+      <SegmentedControl options={ABAS_CENARIOS} value={aba} onChange={setAba} />
+
+      <div className="pt-2">
+        {aba === "comparar" ? <CompararVersoes contratoId={contratoId} versaoAtualId={versaoId} /> : null}
+        {aba === "whatif" ? <SimulacaoWhatIf contratoId={contratoId} versaoAtualId={versaoId} /> : null}
+        {aba === "salvos" ? <CenariosSalvos contratoId={contratoId} /> : null}
+      </div>
     </div>
   );
 }

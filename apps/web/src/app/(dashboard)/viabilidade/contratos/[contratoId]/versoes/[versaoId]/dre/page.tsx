@@ -2,7 +2,6 @@
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -49,28 +48,32 @@ const ORDEM_DETALHADO = [
   "margem_liquida",
 ];
 
+type AbaDRE = "detalhado" | "resumo";
+
+const ABAS_DRE: { label: string; value: AbaDRE }[] = [
+  { label: "Detalhado", value: "detalhado" },
+  { label: "Resumo", value: "resumo" },
+];
+
 export default function DREPage() {
   const { versaoId } = useParams<{ versaoId: string }>();
+  const [aba, setAba] = useState<AbaDRE>("detalhado");
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">DRE — Demonstração de Resultado</h1>
+        <h1 className="text-gold-gradient font-[var(--font-display)] text-2xl font-bold">
+          DRE — Demonstração de Resultado
+        </h1>
         <p className="text-sm text-muted-foreground">Regime de competência pura, sem ajuste de prazo de pagamento.</p>
       </div>
 
-      <Tabs defaultValue="detalhado">
-        <TabsList>
-          <TabsTrigger value="detalhado">Detalhado</TabsTrigger>
-          <TabsTrigger value="resumo">Resumo</TabsTrigger>
-        </TabsList>
-        <TabsContent value="detalhado" className="pt-4">
-          <DREDetalhado versaoId={versaoId} />
-        </TabsContent>
-        <TabsContent value="resumo" className="pt-4">
-          <ResumoDRE versaoId={versaoId} />
-        </TabsContent>
-      </Tabs>
+      <SegmentedControl options={ABAS_DRE} value={aba} onChange={setAba} />
+
+      <div className="pt-2">
+        {aba === "detalhado" ? <DREDetalhado versaoId={versaoId} /> : null}
+        {aba === "resumo" ? <ResumoDRE versaoId={versaoId} /> : null}
+      </div>
     </div>
   );
 }

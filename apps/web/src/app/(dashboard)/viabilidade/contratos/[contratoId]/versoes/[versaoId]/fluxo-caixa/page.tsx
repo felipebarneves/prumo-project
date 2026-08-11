@@ -31,7 +31,7 @@ export default function FluxoCaixaPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Fluxo de Caixa</h1>
+        <h1 className="text-gold-gradient font-[var(--font-display)] text-2xl font-bold">Fluxo de Caixa</h1>
         <p className="text-sm text-muted-foreground">
           Regime de caixa — Receita deslocada pelo Prazo de Pagamento, demais itens em competência.
         </p>

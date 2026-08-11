@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
@@ -16,6 +16,13 @@ import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
 import { ApiError } from "@/lib/api/client";
 import type { CelulaCronograma, CronogramaResponse, LinhaCronograma } from "@/lib/types/viabilidade";
+
+type AbaCronograma = "receita" | "custo";
+
+const ABAS_CRONOGRAMA: { label: string; value: AbaCronograma }[] = [
+  { label: "Receita", value: "receita" },
+  { label: "Custo", value: "custo" },
+];
 
 /**
  * PRD Tela 3 — única tela onde a distribuição temporal de Volumetria é editada.
@@ -27,28 +34,24 @@ import type { CelulaCronograma, CronogramaResponse, LinhaCronograma } from "@/li
  */
 export default function CronogramaPage() {
   const { versaoId } = useParams<{ versaoId: string }>();
+  const [aba, setAba] = useState<AbaCronograma>("receita");
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Cronograma Físico-Financeiro</h1>
+        <h1 className="text-gold-gradient font-[var(--font-display)] text-2xl font-bold">
+          Cronograma Físico-Financeiro
+        </h1>
         <p className="text-sm text-muted-foreground">
           Distribuição da Volumetria ao longo do tempo — linear por padrão, editável célula a célula.
         </p>
       </div>
 
-      <Tabs defaultValue="receita">
-        <TabsList>
-          <TabsTrigger value="receita">Receita</TabsTrigger>
-          <TabsTrigger value="custo">Custo</TabsTrigger>
-        </TabsList>
-        <TabsContent value="receita" className="pt-4">
-          <CronogramaTabela versaoId={versaoId} tipo="receita" />
-        </TabsContent>
-        <TabsContent value="custo" className="pt-4">
-          <CronogramaTabela versaoId={versaoId} tipo="custo" />
-        </TabsContent>
-      </Tabs>
+      <SegmentedControl options={ABAS_CRONOGRAMA} value={aba} onChange={setAba} />
+
+      <div className="pt-2">
+        <CronogramaTabela versaoId={versaoId} tipo={aba} />
+      </div>
     </div>
   );
 }
