@@ -161,10 +161,12 @@ export function Sidebar() {
           </Avatar>
           {!colapsada ? (
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">
+              <p className="truncate text-sm font-semibold text-foreground">
                 {carregandoUsuario ? "Carregando..." : user?.fullName ?? "Usuário"}
               </p>
-              <p className="truncate text-xs text-muted-foreground">{user?.email ?? ""}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {carregandoUsuario ? "" : user?.email ?? ""}
+              </p>
             </div>
           ) : null}
           <Tooltip>

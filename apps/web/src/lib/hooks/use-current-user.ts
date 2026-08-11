@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase";
+import { authApi } from "@/lib/api/auth";
 
 export interface CurrentUser {
   fullName: string;
@@ -21,6 +21,13 @@ function iniciaisDe(nome: string): string {
  * Perfil + organização do usuário logado, para o rodapé/topo da Sidebar.
  * Sem cache/assinatura em tempo real — busca uma vez ao montar, suficiente
  * para o propósito de exibição (nome, e-mail, org ativa), não de autorização.
+ *
+ * Busca via `GET /api/v1/auth/me` (backend, service role) em vez de consultar
+ * `profiles`/`organization_members` diretamente pelo client Supabase — essas
+ * tabelas têm RLS habilitado sem nenhuma política de SELECT (supabase/migrations/
+ * 00001_initial_schema.sql), então a consulta direta do client sempre retornava
+ * vazio: nome caía no fallback do e-mail (duplicando e-mail no rodapé da Sidebar)
+ * e a organização sempre exibia "—" no topo.
  */
 export function useCurrentUser(): { user: CurrentUser | null; loading: boolean } {
   const [user, setUser] = useState<CurrentUser | null>(null);
@@ -28,46 +35,25 @@ export function useCurrentUser(): { user: CurrentUser | null; loading: boolean }
 
   useEffect(() => {
     let cancelado = false;
-    const supabase = createClient();
 
-    async function carregar() {
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (!authUser) {
+    authApi
+      .obterMeuPerfil()
+      .then((me) => {
+        if (cancelado) return;
+        setUser({
+          fullName: me.full_name,
+          email: me.email,
+          initials: iniciaisDe(me.full_name),
+          organizationName: me.organization_name,
+        });
+      })
+      .catch(() => {
+        // Sessão ausente/expirada ou falha de rede — a Sidebar já trata `user === null`
+        // exibindo os fallbacks padrão ("Usuário", "—"), sem necessidade de estado de erro aqui.
+      })
+      .finally(() => {
         if (!cancelado) setLoading(false);
-        return;
-      }
-
-      const [{ data: profile }, { data: membership }] = await Promise.all([
-        supabase.from("profiles").select("full_name").eq("id", authUser.id).single(),
-        supabase
-          .from("organization_members")
-          .select("organizations(name)")
-          .eq("user_id", authUser.id)
-          .limit(1)
-          .maybeSingle(),
-      ]);
-
-      if (cancelado) return;
-
-      const fullName = profile?.full_name ?? authUser.email ?? "Usuário";
-      const organizationName =
-        (membership?.organizations as unknown as { name: string } | null)?.name ?? "—";
-
-      setUser({
-        fullName,
-        email: authUser.email ?? "",
-        initials: iniciaisDe(fullName),
-        organizationName,
       });
-      setLoading(false);
-    }
-
-    carregar().catch(() => {
-      if (!cancelado) setLoading(false);
-    });
 
     return () => {
       cancelado = true;

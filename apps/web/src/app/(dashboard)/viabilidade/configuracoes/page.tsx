@@ -19,13 +19,15 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/finance/state
 import { formatDate } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
+import { authApi } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import type { OrganizationRole, PlanTier, SubscriptionStatus } from "@/lib/types/viabilidade";
 
-type AbaConfiguracoes = "dados" | "membros" | "assinatura";
+type AbaConfiguracoes = "dados" | "usuario" | "membros" | "assinatura";
 
 const ABAS: { label: string; value: AbaConfiguracoes }[] = [
   { label: "Dados da Organização", value: "dados" },
+  { label: "Dados do Usuário", value: "usuario" },
   { label: "Membros e Permissões", value: "membros" },
   { label: "Assinatura e Plano", value: "assinatura" },
 ];
@@ -62,6 +64,7 @@ export default function ConfiguracoesPage() {
       <SegmentedControl options={ABAS} value={aba} onChange={setAba} />
 
       {aba === "dados" ? <DadosOrganizacao /> : null}
+      {aba === "usuario" ? <DadosUsuario /> : null}
       {aba === "membros" ? <MembrosPermissoes /> : null}
       {aba === "assinatura" ? <AssinaturaPlano /> : null}
     </div>
@@ -130,6 +133,152 @@ function DadosOrganizacao() {
             {salvando ? "Salvando..." : "Salvar alterações"}
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DadosUsuario() {
+  const { data, loading, error, refetch } = useApiResource(() => authApi.obterMeuPerfil(), []);
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <NomeUsuarioForm data={data} loading={loading} error={error} onRetry={refetch} onSalvo={refetch} />
+      <TrocarSenhaForm />
+    </div>
+  );
+}
+
+function NomeUsuarioForm({
+  data,
+  loading,
+  error,
+  onRetry,
+  onSalvo,
+}: {
+  data: { full_name: string; email: string } | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  onSalvo: () => void;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [dadosCarregadosPara, setDadosCarregadosPara] = useState<typeof data>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  if (data && data !== dadosCarregadosPara) {
+    setDadosCarregadosPara(data);
+    setFullName(data.full_name);
+  }
+
+  async function salvar() {
+    if (!fullName.trim()) {
+      toast.error("Informe seu nome.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      await authApi.atualizarMeuPerfil({ full_name: fullName.trim() });
+      toast.success("Nome atualizado.");
+      onSalvo();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível atualizar seu nome.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (loading) return <LoadingState rows={2} />;
+  if (error) return <ErrorState message={error} onRetry={onRetry} />;
+
+  return (
+    <Card className="rounded-[var(--radius-lg)]">
+      <CardHeader>
+        <CardTitle className="text-base">Dados do Usuário</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label>Nome do Usuário</Label>
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>E-mail</Label>
+          <Input value={data?.email ?? ""} disabled />
+        </div>
+        <Button onClick={salvar} disabled={salvando}>
+          {salvando ? "Salvando..." : "Salvar nome"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TrocarSenhaForm() {
+  const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
+      toast.error("Preencha senha atual, nova senha e confirmação.");
+      return;
+    }
+    if (form.newPassword !== form.confirmPassword) {
+      toast.error("A nova senha e a confirmação não coincidem.");
+      return;
+    }
+    if (form.newPassword.length < 8) {
+      toast.error("A nova senha precisa ter ao menos 8 caracteres.");
+      return;
+    }
+    setSalvando(true);
+    try {
+      await authApi.atualizarMeuPerfil({
+        current_password: form.currentPassword,
+        new_password: form.newPassword,
+        confirm_password: form.confirmPassword,
+      });
+      toast.success("Senha atualizada.");
+      setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível atualizar a senha.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <Card className="rounded-[var(--radius-lg)]">
+      <CardHeader>
+        <CardTitle className="text-base">Alterar Senha</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label>Senha atual</Label>
+          <Input
+            type="password"
+            value={form.currentPassword}
+            onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Nova senha</Label>
+          <Input
+            type="password"
+            value={form.newPassword}
+            onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Confirmar nova senha</Label>
+          <Input
+            type="password"
+            value={form.confirmPassword}
+            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+          />
+        </div>
+        <Button onClick={salvar} disabled={salvando}>
+          {salvando ? "Salvando..." : "Alterar senha"}
+        </Button>
       </CardContent>
     </Card>
   );

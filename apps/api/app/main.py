@@ -3,6 +3,7 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .api.routes.auth import router as auth_router
 from .api.routes.health import router as health_router
 from .modules.viabilidade.api.router import router as viabilidade_router
 
@@ -36,6 +37,7 @@ app.add_middleware(
 # (ver docs/deploy.md, seção "Opção B").
 app.include_router(health_router, prefix="/api")
 app.include_router(viabilidade_router)
+app.include_router(auth_router)
 
 
 @app.get("/")
