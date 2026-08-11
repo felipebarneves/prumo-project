@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { Versao } from "@/lib/types/viabilidade";
 
 /** Nome + badge de status da versão, usado nos itens dos dropdowns de seleção. */
@@ -22,6 +23,7 @@ interface VersionSelectProps {
   value: string | null;
   onChange: (id: string) => void;
   placeholder?: string;
+  className?: string;
 }
 
 /**
@@ -29,10 +31,10 @@ interface VersionSelectProps {
  * badge de status, nunca o UUID bruto. Enquanto a versão selecionada ainda não foi
  * encontrada na lista (carregando), cai para o placeholder em vez do id.
  */
-export function VersionSelect({ versoes, versaoAtualId, value, onChange, placeholder }: VersionSelectProps) {
+export function VersionSelect({ versoes, versaoAtualId, value, onChange, placeholder, className }: VersionSelectProps) {
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)}>
-      <SelectTrigger className="w-64">
+      <SelectTrigger className={cn("w-64", className)}>
         <SelectValue placeholder={placeholder}>
           {(id: string | null) => {
             const versao = id ? versoes?.find((v) => v.id === id) : undefined;

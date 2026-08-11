@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { VersionSelect } from "@/components/finance/version-select";
 import { NovoProjetoDialog } from "@/components/viabilidade/novo-projeto-dialog";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
@@ -29,7 +30,6 @@ export function Header() {
   );
 
   const contratoAtivo = contratos?.items.find((c) => c.id === contratoId);
-  const versaoAtiva = versoes?.find((v) => v.id === versaoId);
 
   function trocarProjeto(novoContratoId: string) {
     const alvo = contratos?.items.find((c) => c.id === novoContratoId);
@@ -62,18 +62,14 @@ export function Header() {
             <span className="font-mono text-[0.65rem] uppercase tracking-[0.15em] text-muted-foreground">
               Versão
             </span>
-            <Select value={versaoId} onValueChange={(v) => v && trocarVersao(v)}>
-              <SelectTrigger className="w-48">
-                <SelectValue>{versaoAtiva?.nome_versao ?? "Selecione a versão"}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {versoes?.map((versao) => (
-                  <SelectItem key={versao.id} value={versao.id}>
-                    {versao.nome_versao}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <VersionSelect
+              versoes={versoes}
+              versaoAtualId={versaoId ?? ""}
+              value={versaoId ?? null}
+              onChange={trocarVersao}
+              placeholder="Selecione a versão"
+              className="w-48"
+            />
           </>
         ) : (
           <p className="text-sm text-muted-foreground">Nenhum projeto selecionado</p>

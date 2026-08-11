@@ -15,6 +15,7 @@ import { TableContainer, TableHeaderGold } from "@/components/ui/table-container
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MetricCard } from "@/components/finance/metric-card";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
 import { PercentInput } from "@/components/finance/percent-input";
 import { CurrencyInput } from "@/components/finance/currency-input";
@@ -25,9 +26,6 @@ import { ApiError } from "@/lib/api/client";
 import type { DespesaNaoOperacional, DespesaTipo, LinhaCusto, LinhaReceita } from "@/lib/types/viabilidade";
 
 const UNIDADES_MEDIDA = ["unitario", "mensal", "hora", "km"] as const;
-
-/** Aba ativa/hover na cor dourada da marca (--gold-1, via o token --primary). */
-const TAB_TRIGGER_GOLD = "hover:text-primary data-active:text-primary data-active:after:bg-primary";
 
 export default function ParametrosPage() {
   const { versaoId } = useParams<{ versaoId: string }>();
@@ -43,18 +41,10 @@ export default function ParametrosPage() {
 
       <Tabs defaultValue="gerais">
         <TabsList>
-          <TabsTrigger value="gerais" className={TAB_TRIGGER_GOLD}>
-            Parâmetros Gerais
-          </TabsTrigger>
-          <TabsTrigger value="receita" className={TAB_TRIGGER_GOLD}>
-            Receita
-          </TabsTrigger>
-          <TabsTrigger value="custo" className={TAB_TRIGGER_GOLD}>
-            Custo
-          </TabsTrigger>
-          <TabsTrigger value="despesas" className={TAB_TRIGGER_GOLD}>
-            Despesas Não Operacionais
-          </TabsTrigger>
+          <TabsTrigger value="gerais">Parâmetros Gerais</TabsTrigger>
+          <TabsTrigger value="receita">Receita</TabsTrigger>
+          <TabsTrigger value="custo">Custo</TabsTrigger>
+          <TabsTrigger value="despesas">Despesas Não Operacionais</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gerais" className="pt-4">
@@ -220,8 +210,15 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
   if (loading) return <LoadingState rows={3} />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
 
+  const totalCalculado = (data ?? []).reduce((soma, linha) => soma + Number(linha.valor_total_calculado || 0), 0);
+
   return (
     <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <MetricCard label="Linhas de Receita" value={formatNumber(data?.length ?? 0)} />
+        <MetricCard label="Total Calculado" value={formatCurrency(totalCalculado)} secondary="Soma das linhas cadastradas" />
+      </div>
+
       <TableContainer>
         <Table>
           <TableHeaderGold>
@@ -589,8 +586,15 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
   if (loading) return <LoadingState rows={3} />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
 
+  const totalCalculado = (data ?? []).reduce((soma, linha) => soma + Number(linha.custo_total_calculado || 0), 0);
+
   return (
     <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <MetricCard label="Linhas de Custo" value={formatNumber(data?.length ?? 0)} />
+        <MetricCard label="Total Calculado" value={formatCurrency(totalCalculado)} secondary="Soma das linhas cadastradas" />
+      </div>
+
       <TableContainer>
         <Table>
           <TableHeaderGold>
@@ -939,12 +943,20 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
   if (loading) return <LoadingState rows={3} />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
 
+  const despesas = (data ?? []).filter((d) => d.tipo === "despesa").length;
+  const recuperacoes = (data ?? []).filter((d) => d.tipo === "recuperacao").length;
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
         Sem referência a uma linha de Receita, o percentual é aplicado sobre a Receita Bruta Total do projeto. A linha
         de Custo Financeiro é automática e não aparece aqui — é derivada da Taxa de Custo de Captação.
       </p>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <MetricCard label="Despesas" value={formatNumber(despesas)} secondary="Reduzem o resultado" />
+        <MetricCard label="Recuperações" value={formatNumber(recuperacoes)} secondary="Aumentam o resultado" />
+      </div>
 
       <TableContainer>
         <Table>
