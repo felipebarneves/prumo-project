@@ -422,7 +422,9 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
                 </TableCell>
                 <TableCell className="text-right">{linha.mes_inicio ?? "—"}</TableCell>
                 <TableCell className="text-right">{linha.prazo_meses ?? "—"}</TableCell>
-                <TableCell className="text-right font-medium">{formatCurrency(linha.valor_total_calculado)}</TableCell>
+                <TableCell className="text-right font-medium">
+                  {formatCurrency(linha.valor_total_calculado, { casasDecimais: 0 })}
+                </TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => setLinhaEditando(linha)}>
                     <Pencil className="h-4 w-4" />
@@ -794,7 +796,9 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
                 <TableCell className="text-right">{formatCurrency(linha.custo_unitario)}</TableCell>
                 <TableCell className="text-right">{linha.mes_inicio ?? "—"}</TableCell>
                 <TableCell className="text-right">{linha.prazo_meses ?? "—"}</TableCell>
-                <TableCell className="text-right font-medium">{formatCurrency(linha.custo_total_calculado)}</TableCell>
+                <TableCell className="text-right font-medium">
+                  {formatCurrency(linha.custo_total_calculado, { casasDecimais: 0 })}
+                </TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="icon" onClick={() => setLinhaEditando(linha)}>
                     <Pencil className="h-4 w-4" />

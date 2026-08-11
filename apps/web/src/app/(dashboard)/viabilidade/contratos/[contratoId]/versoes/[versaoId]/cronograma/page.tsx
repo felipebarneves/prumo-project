@@ -74,6 +74,10 @@ function CronogramaTabela({
     [versaoId, tipo]
   );
   const [editando, setEditando] = useState<Record<string, string>>({});
+  // Linhas marcadas para reset ao Salvar — mesmo tratamento de "rascunho" das
+  // edições manuais de célula: resetar não dispara a API na hora, só entra na
+  // fila que "Salvar Cronograma" processa (ver salvarCronograma).
+  const [resetsPendentes, setResetsPendentes] = useState<Set<string>>(new Set());
   const [salvando, setSalvando] = useState(false);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -120,19 +124,30 @@ function CronogramaTabela({
       })
       .filter((l) => l.celulas.length > 0);
 
-    if (linhasComEdicao.length === 0) return;
+    if (linhasComEdicao.length === 0 && resetsPendentes.size === 0) return;
 
     setSalvando(true);
     try {
-      await Promise.all(
-        linhasComEdicao.map((l) =>
+      // Uma linha nunca está em `editando` e `resetsPendentes` ao mesmo tempo —
+      // resetarLinha() já limpa qualquer edição de célula pendente da linha ao
+      // marcá-la para reset, e os inputs ficam desabilitados enquanto o reset
+      // está pendente — então as duas listas abaixo não competem pela mesma
+      // linha e podem rodar em paralelo com segurança.
+      await Promise.all([
+        ...linhasComEdicao.map((l) =>
           tipo === "receita"
             ? viabilidadeApi.atualizarCelulasReceita(versaoId, l.linhaId, l.celulas)
             : viabilidadeApi.atualizarCelulasCusto(versaoId, l.linhaId, l.celulas)
-        )
-      );
+        ),
+        ...[...resetsPendentes].map((linhaId) =>
+          tipo === "receita"
+            ? viabilidadeApi.resetarDistribuicaoReceita(versaoId, linhaId)
+            : viabilidadeApi.resetarDistribuicaoCusto(versaoId, linhaId)
+        ),
+      ]);
       toast.success("Cronograma salvo.");
       setEditando({});
+      setResetsPendentes(new Set());
       refetch();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Não foi possível salvar o cronograma.");
@@ -141,19 +156,32 @@ function CronogramaTabela({
     }
   }
 
-  async function resetarLinha(linhaId: string) {
-    if (!confirm("Isso vai limpar todos os overrides manuais desta linha e voltar à distribuição linear. Continuar?")) return;
-    try {
-      if (tipo === "receita") {
-        await viabilidadeApi.resetarDistribuicaoReceita(versaoId, linhaId);
-      } else {
-        await viabilidadeApi.resetarDistribuicaoCusto(versaoId, linhaId);
-      }
-      toast.success("Distribuição resetada.");
-      refetch();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Não foi possível resetar a distribuição.");
+  function resetarLinha(linhaId: string) {
+    if (
+      !confirm(
+        "Isso vai limpar todos os overrides manuais desta linha e voltar à distribuição linear. A alteração só é aplicada ao clicar em \"Salvar Cronograma\". Continuar?"
+      )
+    ) {
+      return;
     }
+    // Um reset pendente invalida qualquer edição manual de célula ainda não salva
+    // desta linha — evita salvar um override que o próprio reset vai apagar.
+    setEditando((prev) => {
+      const proximo = { ...prev };
+      for (const chave of Object.keys(proximo)) {
+        if (chave.startsWith(`${linhaId}-`)) delete proximo[chave];
+      }
+      return proximo;
+    });
+    setResetsPendentes((prev) => new Set(prev).add(linhaId));
+  }
+
+  function cancelarResetPendente(linhaId: string) {
+    setResetsPendentes((prev) => {
+      const proximo = new Set(prev);
+      proximo.delete(linhaId);
+      return proximo;
+    });
   }
 
   if (loading) return <LoadingState rows={4} />;
@@ -162,7 +190,7 @@ function CronogramaTabela({
     return <EmptyState title={`Nenhuma linha de ${tipo} cadastrada`} description="Cadastre linhas na aba Parâmetros primeiro." />;
   }
 
-  const temEdicoes = Object.keys(editando).length > 0;
+  const temEdicoes = Object.keys(editando).length > 0 || resetsPendentes.size > 0;
 
   return (
     <div className="space-y-6">
@@ -182,16 +210,28 @@ function CronogramaTabela({
                   Soma diverge do total
                 </Badge>
               ) : null}
+              {resetsPendentes.has(linha.linha_id) ? (
+                <Badge variant="outline" className="border-primary/40 font-mono text-[0.6rem] uppercase tracking-wider text-primary">
+                  Reset pendente — salve para aplicar
+                </Badge>
+              ) : null}
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>
                 Total: <span className="text-foreground">{formatNumber(linha.total_linha)}</span> · Distribuído:{" "}
                 <span className="text-foreground">{formatNumber(linha.soma_distribuicao)}</span>
               </span>
-              <Button variant="ghost" size="sm" onClick={() => resetarLinha(linha.linha_id)}>
-                <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                Resetar
-              </Button>
+              {resetsPendentes.has(linha.linha_id) ? (
+                <Button variant="ghost" size="sm" onClick={() => cancelarResetPendente(linha.linha_id)}>
+                  <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                  Cancelar reset
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => resetarLinha(linha.linha_id)}>
+                  <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                  Resetar
+                </Button>
+              )}
             </div>
           </div>
 
@@ -233,6 +273,7 @@ function CronogramaTabela({
                           }}
                           className={`h-8 w-20 text-center ${celula.is_override ? "border-primary/50" : ""}`}
                           defaultValue={celula.volumetria ?? "0"}
+                          disabled={resetsPendentes.has(linha.linha_id)}
                           onChange={(e) => handleChange(linha, celula, e.target.value)}
                           onPaste={(e) => handlePaste(e, linha, celula)}
                         />
