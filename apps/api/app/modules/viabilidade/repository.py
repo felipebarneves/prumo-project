@@ -327,7 +327,28 @@ def renomear_versao(versao_id: UUID, nome_versao: str) -> dict[str, Any]:
 
 
 def excluir_versao(versao_id: UUID) -> None:
-    supabase.table("versoes").delete().eq("id", str(versao_id)).execute()
+    try:
+        supabase.table("versoes").delete().eq("id", str(versao_id)).execute()
+    except PostgrestAPIError as exc:
+        # Antes da migration 00006, isso disparava sempre que a versão tinha um
+        # Cenário salvo (versao_snapshots.versao_a_id/versao_b_id) ou era origem
+        # de outra versão duplicada (versoes.origem_versao_id) — essas 3 FKs
+        # foram criadas em 00003 sem ON DELETE (= NO ACTION no Postgres), então
+        # o DELETE aqui levantava "foreign key violation" (código 23503) sem
+        # nenhum try/except, virando um 500 genérico do FastAPI. Mantido como
+        # defesa mesmo após a correção das FKs — cobre qualquer violação futura
+        # sem crashar sem log.
+        logger.error(
+            "Falha ao excluir versão versao_id=%s: code=%s message=%s details=%s hint=%s",
+            versao_id, exc.code, exc.message, exc.details, exc.hint, exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error_code": "FALHA_AO_EXCLUIR_VERSAO",
+                "message": "Não foi possível excluir esta versão. Tente novamente ou contate o suporte.",
+            },
+        ) from exc
 
 
 # --------------------------------------------------------------------------- parâmetros
