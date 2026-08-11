@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
 import { formatDate } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
@@ -76,16 +77,14 @@ export function HistoricoVersoes({ contratoId, versaoAtualId }: { contratoId: st
       </div>
 
       {data && data.length > 0 ? (
-        <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
+        <TableContainer>
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead>Vínculo Precificação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
+            <TableHeaderGold>
+              <TableHead>Nome</TableHead>
+              <TableHead>Criado em</TableHead>
+              <TableHead>Vínculo Precificação</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableHeaderGold>
             <TableBody>
               {data.map((versao) => (
                 <TableRow key={versao.id} className={versao.id === versaoAtualId ? "bg-accent/40" : undefined}>
@@ -114,7 +113,7 @@ export function HistoricoVersoes({ contratoId, versaoAtualId }: { contratoId: st
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableContainer>
       ) : (
         <EmptyState title="Nenhuma versão encontrada" />
       )}

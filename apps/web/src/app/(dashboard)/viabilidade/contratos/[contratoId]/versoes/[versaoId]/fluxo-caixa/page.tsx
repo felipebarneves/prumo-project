@@ -1,8 +1,9 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { KpiCard } from "@/components/finance/kpi-card";
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
+import { MetricCard } from "@/components/finance/metric-card";
 import { ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
@@ -42,27 +43,25 @@ export default function FluxoCaixaPage() {
       {!loading && !error && data ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            <KpiCard label="Capital de Giro" value={formatCurrency(data.capital_de_giro)} secondary="Pico de necessidade de caixa" />
-            <KpiCard
+            <MetricCard label="Capital de Giro" value={formatCurrency(data.capital_de_giro)} secondary="Pico de necessidade de caixa" />
+            <MetricCard
               label="Saldo de Caixa Final"
               value={formatCurrency(data.linhas.find((l) => l.item === "saldo_caixa_final")?.total_projeto ?? "0")}
               secondary="Base de VPL / TIR / TIRM"
             />
           </div>
 
-          <div className="max-w-full overflow-x-auto rounded-[var(--radius-lg)] border border-border/60">
+          <TableContainer>
             <Table>
-              <TableHeader>
-                <TableRow className="[&>th]:text-primary">
-                  <TableHead className="sticky left-0 bg-card">Item</TableHead>
-                  <TableHead className="text-right">Total do Projeto</TableHead>
-                  {data.meses.map((mes) => (
-                    <TableHead key={mes} className="text-right">
-                      Mês {mes}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
+              <TableHeaderGold>
+                <TableHead className="sticky left-0 bg-card">Item</TableHead>
+                <TableHead className="text-right">Total do Projeto</TableHead>
+                {data.meses.map((mes) => (
+                  <TableHead key={mes} className="text-right">
+                    Mês {mes}
+                  </TableHead>
+                ))}
+              </TableHeaderGold>
               <TableBody>
                 {data.linhas.map((linha) => (
                   <TableRow key={linha.item} className={ITENS_DESTAQUE.has(linha.item) ? "font-semibold" : undefined}>
@@ -77,7 +76,7 @@ export default function FluxoCaixaPage() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </TableContainer>
         </>
       ) : null}
     </div>

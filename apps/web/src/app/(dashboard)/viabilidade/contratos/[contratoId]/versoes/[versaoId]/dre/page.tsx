@@ -3,8 +3,9 @@
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
@@ -91,19 +92,17 @@ function DREDetalhado({ versaoId }: { versaoId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="max-w-full overflow-x-auto rounded-[var(--radius-lg)] border border-border/60">
+      <TableContainer>
         <Table>
-          <TableHeader>
-            <TableRow className="[&>th]:text-primary">
-              <TableHead className="sticky left-0 bg-card">Item</TableHead>
-              <TableHead className="text-right">Total do Projeto</TableHead>
-              {data.meses.map((mes) => (
-                <TableHead key={mes} className="text-right">
-                  Mês {mes}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
+          <TableHeaderGold>
+            <TableHead className="sticky left-0 bg-card">Item</TableHead>
+            <TableHead className="text-right">Total do Projeto</TableHead>
+            {data.meses.map((mes) => (
+              <TableHead key={mes} className="text-right">
+                Mês {mes}
+              </TableHead>
+            ))}
+          </TableHeaderGold>
           <TableBody>
             {linhasOrdenadas.map((linha) => (
               <TableRow key={linha.item} className={ITENS_DESTAQUE.has(linha.item) ? "font-semibold" : undefined}>
@@ -120,16 +119,16 @@ function DREDetalhado({ versaoId }: { versaoId: string }) {
             ))}
           </TableBody>
         </Table>
-      </div>
+      </TableContainer>
       <p className="text-xs text-muted-foreground">{data.nota_irpj}</p>
     </div>
   );
 }
 
-const OPCOES_PERIODICIDADE: { label: string; valor: GranularidadeResumo }[] = [
-  { label: "12M", valor: "anual" },
-  { label: "6M", valor: "semestral" },
-  { label: "3M", valor: "trimestral" },
+const OPCOES_PERIODICIDADE: { label: string; value: GranularidadeResumo }[] = [
+  { label: "12M", value: "anual" },
+  { label: "6M", value: "semestral" },
+  { label: "3M", value: "trimestral" },
 ];
 
 function SeletorPeriodicidade({
@@ -139,22 +138,7 @@ function SeletorPeriodicidade({
   valor: GranularidadeResumo;
   onChange: (valor: GranularidadeResumo) => void;
 }) {
-  return (
-    <div className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/40 p-1">
-      {OPCOES_PERIODICIDADE.map((opcao) => (
-        <Button
-          key={opcao.valor}
-          type="button"
-          size="sm"
-          variant={valor === opcao.valor ? "default" : "ghost"}
-          className="rounded-full px-3"
-          onClick={() => onChange(opcao.valor)}
-        >
-          {opcao.label}
-        </Button>
-      ))}
-    </div>
-  );
+  return <SegmentedControl options={OPCOES_PERIODICIDADE} value={valor} onChange={onChange} />;
 }
 
 function ResumoDRE({ versaoId }: { versaoId: string }) {
@@ -177,19 +161,17 @@ function ResumoDRE({ versaoId }: { versaoId: string }) {
       {error ? <ErrorState message={error} onRetry={refetch} /> : null}
 
       {!loading && !error && data ? (
-        <div className="max-w-full overflow-x-auto rounded-[var(--radius-lg)] border border-border/60">
+        <TableContainer>
           <Table>
-            <TableHeader>
-              <TableRow className="[&>th]:text-primary">
-                <TableHead>Item</TableHead>
-                <TableHead className="text-right">Total do Projeto</TableHead>
-                {data.linhas[0]?.periodos.map((periodo) => (
-                  <TableHead key={periodo.periodo_label} className="text-right">
-                    {periodo.periodo_label}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
+            <TableHeaderGold>
+              <TableHead>Item</TableHead>
+              <TableHead className="text-right">Total do Projeto</TableHead>
+              {data.linhas[0]?.periodos.map((periodo) => (
+                <TableHead key={periodo.periodo_label} className="text-right">
+                  {periodo.periodo_label}
+                </TableHead>
+              ))}
+            </TableHeaderGold>
             <TableBody>
               {data.linhas.map((linha) => (
                 <TableRow key={linha.item} className={ITENS_DESTAQUE.has(linha.item) ? "font-semibold" : undefined}>
@@ -204,7 +186,7 @@ function ResumoDRE({ versaoId }: { versaoId: string }) {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableContainer>
       ) : null}
 
       {data ? <p className="text-xs text-muted-foreground">{data.nota_irpj}</p> : null}

@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -221,21 +222,19 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
+      <TableContainer>
         <Table>
-          <TableHeader>
-            <TableRow className="[&>th]:text-primary">
-              <TableHead>Descrição</TableHead>
-              <TableHead>Unidade</TableHead>
-              <TableHead className="text-right">Volumetria</TableHead>
-              <TableHead className="text-right">Valor Unitário</TableHead>
-              <TableHead className="text-right">Impostos (%)</TableHead>
-              <TableHead className="text-right">Mês Início</TableHead>
-              <TableHead className="text-right">Prazo (meses)</TableHead>
-              <TableHead className="text-right">Total Calculado</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeaderGold>
+            <TableHead>Descrição</TableHead>
+            <TableHead>Unidade</TableHead>
+            <TableHead className="text-right">Volumetria</TableHead>
+            <TableHead className="text-right">Valor Unitário</TableHead>
+            <TableHead className="text-right">Impostos (%)</TableHead>
+            <TableHead className="text-right">Mês Início</TableHead>
+            <TableHead className="text-right">Prazo (meses)</TableHead>
+            <TableHead className="text-right">Total Calculado</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableHeaderGold>
           <TableBody>
             {data?.map((linha) => (
               <TableRow key={linha.id}>
@@ -285,7 +284,7 @@ function TabelaReceita({ versaoId }: { versaoId: string }) {
             ) : null}
           </TableBody>
         </Table>
-      </div>
+      </TableContainer>
 
       <div className="flex flex-wrap items-end gap-2 rounded-[var(--radius-lg)] border border-dashed border-border/60 p-3">
         <div className="space-y-1">
@@ -592,20 +591,18 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
+      <TableContainer>
         <Table>
-          <TableHeader>
-            <TableRow className="[&>th]:text-primary">
-              <TableHead>Descrição</TableHead>
-              <TableHead>Unidade</TableHead>
-              <TableHead className="text-right">Volumetria</TableHead>
-              <TableHead className="text-right">Custo Unitário</TableHead>
-              <TableHead className="text-right">Mês Início</TableHead>
-              <TableHead className="text-right">Prazo (meses)</TableHead>
-              <TableHead className="text-right">Total Calculado</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeaderGold>
+            <TableHead>Descrição</TableHead>
+            <TableHead>Unidade</TableHead>
+            <TableHead className="text-right">Volumetria</TableHead>
+            <TableHead className="text-right">Custo Unitário</TableHead>
+            <TableHead className="text-right">Mês Início</TableHead>
+            <TableHead className="text-right">Prazo (meses)</TableHead>
+            <TableHead className="text-right">Total Calculado</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableHeaderGold>
           <TableBody>
             {data?.map((linha) => (
               <TableRow key={linha.id}>
@@ -647,7 +644,7 @@ function TabelaCusto({ versaoId }: { versaoId: string }) {
             ) : null}
           </TableBody>
         </Table>
-      </div>
+      </TableContainer>
 
       <div className="flex flex-wrap items-end gap-2 rounded-[var(--radius-lg)] border border-dashed border-border/60 p-3">
         <div className="space-y-1">
@@ -949,17 +946,15 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
         de Custo Financeiro é automática e não aparece aqui — é derivada da Taxa de Custo de Captação.
       </p>
 
-      <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
+      <TableContainer>
         <Table>
-          <TableHeader>
-            <TableRow className="[&>th]:text-primary">
-              <TableHead>Descrição</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Percentual</TableHead>
-              <TableHead>Linha de Receita de Referência</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
+          <TableHeaderGold>
+            <TableHead>Descrição</TableHead>
+            <TableHead>Tipo</TableHead>
+            <TableHead className="text-right">Percentual</TableHead>
+            <TableHead>Linha de Receita de Referência</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableHeaderGold>
           <TableBody>
             {data?.map((despesa) => (
               <TableRow key={despesa.id}>
@@ -996,7 +991,7 @@ function TabelaDespesas({ versaoId }: { versaoId: string }) {
             ) : null}
           </TableBody>
         </Table>
-      </div>
+      </TableContainer>
 
       <div className="flex flex-wrap items-end gap-2 rounded-[var(--radius-lg)] border border-dashed border-border/60 p-3">
         <div className="space-y-1">

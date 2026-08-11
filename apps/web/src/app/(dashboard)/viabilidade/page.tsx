@@ -7,7 +7,8 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
+import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
 import { NovoProjetoDialog } from "@/components/viabilidade/novo-projeto-dialog";
 import { formatDate } from "@/lib/format";
@@ -97,18 +98,16 @@ export default function ProjetosPage() {
       ) : null}
 
       {!loading && !error && data && data.items.length > 0 ? (
-        <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border/60">
+        <TableContainer>
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome do Projeto</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Módulos Vinculados</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
+            <TableHeaderGold>
+              <TableHead>Nome do Projeto</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Módulos Vinculados</TableHead>
+              <TableHead>Criado em</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableHeaderGold>
             <TableBody>
               {data.items.map((contrato) => (
                 <TableRow key={contrato.id} className={contrato.arquivado ? "opacity-60" : undefined}>
@@ -152,7 +151,7 @@ export default function ProjetosPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableContainer>
       ) : null}
     </div>
   );

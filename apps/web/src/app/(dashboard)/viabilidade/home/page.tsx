@@ -1,6 +1,6 @@
 "use client";
 
-import { KpiCard } from "@/components/finance/kpi-card";
+import { MetricCard } from "@/components/finance/metric-card";
 import { ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
@@ -29,13 +29,13 @@ export default function HomeOrganizacaoPage() {
 
       {!loading && !error && data ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard label="Receita Bruta Total" value={formatCurrency(data.kpis.receita_bruta_total)} />
-          <KpiCard
+          <MetricCard label="Receita Bruta Total" value={formatCurrency(data.kpis.receita_bruta_total)} />
+          <MetricCard
             label="EBITDA Total"
             value={formatCurrency(data.kpis.ebitda_total)}
             secondary={`Margem ${formatPercent(data.kpis.margem_ebitda)}`}
           />
-          <KpiCard
+          <MetricCard
             label="Contratos Ativos"
             value={`${data.kpis.contratos_ativos_atual} de ${data.kpis.contratos_ativos_limite}`}
             secondary="Limite do plano contratado"

@@ -11,14 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PercentInput } from "@/components/finance/percent-input";
+import { ScenarioCard } from "@/components/finance/scenario-card";
+import { VersionSelect } from "@/components/finance/version-select";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency, formatDate, formatMonth, formatPercent } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
 import { ApiError } from "@/lib/api/client";
-import type { ComparacaoMetricas, Snapshot, Versao } from "@/lib/types/viabilidade";
+import type { ComparacaoMetricas, Snapshot } from "@/lib/types/viabilidade";
 
 export default function CenariosPage() {
   const { contratoId, versaoId } = useParams<{ contratoId: string; versaoId: string }>();
@@ -67,54 +68,6 @@ function formatarMetrica(valor: string | number | null, formato: "moeda" | "perc
   return formatMonth(valor as number);
 }
 
-/** Nome + badge de status da versão, usado nos itens dos dropdowns de seleção. */
-function VersaoOptionLabel({ versao, versaoAtualId }: { versao: Versao; versaoAtualId: string }) {
-  return (
-    <span className="flex items-center gap-2">
-      <span>{versao.nome_versao}</span>
-      {versao.id === versaoAtualId ? (
-        <Badge variant="secondary">Ativo</Badge>
-      ) : versao.vinculo_precificacao_ativo ? (
-        <Badge variant="outline">Vinculada</Badge>
-      ) : null}
-    </span>
-  );
-}
-
-function VersaoSelect({
-  versoes,
-  versaoAtualId,
-  value,
-  onChange,
-  placeholder,
-}: {
-  versoes: Versao[] | null | undefined;
-  versaoAtualId: string;
-  value: string | null;
-  onChange: (id: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <Select value={value} onValueChange={(v) => v && onChange(v)}>
-      <SelectTrigger className="w-64">
-        <SelectValue placeholder={placeholder}>
-          {(id: string | null) => {
-            const versao = id ? versoes?.find((v) => v.id === id) : undefined;
-            return versao ? <VersaoOptionLabel versao={versao} versaoAtualId={versaoAtualId} /> : id;
-          }}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {versoes?.map((v) => (
-          <SelectItem key={v.id} value={v.id}>
-            <VersaoOptionLabel versao={v} versaoAtualId={versaoAtualId} />
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 /** Par de cards lado a lado exibindo as métricas de duas colunas de resultado. */
 function CardsComparacao({
   tituloA,
@@ -133,21 +86,14 @@ function CardsComparacao({
         { titulo: tituloA, metricas: metricasA },
         { titulo: tituloB, metricas: metricasB },
       ].map(({ titulo, metricas }) => (
-        <Card key={titulo} className="overflow-hidden rounded-[var(--radius-lg)]">
-          <CardHeader className="flex-row items-center justify-between space-y-0 border-b border-border/60 pb-3">
-            <Badge variant="secondary" className="text-sm">
-              {titulo}
-            </Badge>
-          </CardHeader>
-          <CardContent className="space-y-2 pt-4">
-            {LINHAS_METRICAS.map(({ chave, label, formato }) => (
-              <div key={chave} className="flex items-center justify-between rounded-[var(--radius-md)] px-2 py-1.5 odd:bg-muted/40">
-                <span className="text-sm text-muted-foreground">{label}</span>
-                <span className="text-sm font-semibold">{formatarMetrica(metricas[chave], formato)}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <ScenarioCard key={titulo} title={<Badge variant="secondary" className="text-sm">{titulo}</Badge>}>
+          {LINHAS_METRICAS.map(({ chave, label, formato }) => (
+            <div key={chave} className="flex items-center justify-between rounded-[var(--radius-md)] px-2 py-1.5 odd:bg-muted/40">
+              <span className="text-sm text-muted-foreground">{label}</span>
+              <span className="text-sm font-semibold">{formatarMetrica(metricas[chave], formato)}</span>
+            </div>
+          ))}
+        </ScenarioCard>
       ))}
     </div>
   );
@@ -189,7 +135,7 @@ function SalvarCenario({ onSalvar }: { onSalvar: (nome: string) => Promise<void>
         <Button
           onClick={salvar}
           disabled={salvando}
-          className="bg-[#C9A24B] text-black hover:bg-[#C9A24B]/85"
+          className="bg-primary text-primary-foreground hover:bg-primary/85"
         >
           <Save className="mr-1 h-4 w-4" />
           {salvando ? "Salvando..." : "Salvar Cenário"}
@@ -238,11 +184,11 @@ function CompararVersoes({ contratoId, versaoAtualId }: { contratoId: string; ve
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-1.5">
           <Label className="text-xs">Cenário A</Label>
-          <VersaoSelect versoes={versoes} versaoAtualId={versaoAtualId} value={versaoA} onChange={setVersaoA} />
+          <VersionSelect versoes={versoes} versaoAtualId={versaoAtualId} value={versaoA} onChange={setVersaoA} />
         </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Cenário B</Label>
-          <VersaoSelect
+          <VersionSelect
             versoes={versoes}
             versaoAtualId={versaoAtualId}
             value={versaoB}
@@ -329,7 +275,7 @@ function SimulacaoWhatIf({ contratoId, versaoAtualId }: { contratoId: string; ve
         <CardContent className="grid gap-4 sm:grid-cols-4">
           <div className="space-y-1.5">
             <Label className="text-xs">Versão-base</Label>
-            <VersaoSelect versoes={versoes} versaoAtualId={versaoAtualId} value={versaoBase} onChange={setVersaoBase} />
+            <VersionSelect versoes={versoes} versaoAtualId={versaoAtualId} value={versaoBase} onChange={setVersaoBase} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Ajuste de Receita (%)</Label>
@@ -423,33 +369,36 @@ function CenariosSalvos({ contratoId }: { contratoId: string }) {
         const ebitdaB = ebitdaDoResultado(snapshot.resultado, chaveB);
 
         return (
-          <Card key={snapshot.id} className="rounded-[var(--radius-lg)]">
-            <CardHeader className="flex-row items-start justify-between space-y-0 pb-3">
+          <ScenarioCard
+            key={snapshot.id}
+            title={
               <div className="space-y-1">
                 <CardTitle className="text-base">{snapshot.nome}</CardTitle>
                 <p className="text-xs text-muted-foreground">{formatDate(snapshot.created_at)}</p>
               </div>
-              <Badge variant={snapshot.tipo === "whatif" ? "outline" : "secondary"}>
-                {snapshot.tipo === "whatif" ? "What-If" : "Comparação"}
-              </Badge>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="rounded-[var(--radius-md)] bg-muted/40 p-2">
-                  <p className="truncate text-xs text-muted-foreground">{tituloA}</p>
-                  <p className="font-semibold">{ebitdaA ? formatCurrency(ebitdaA) : "—"}</p>
-                </div>
-                <div className="rounded-[var(--radius-md)] bg-muted/40 p-2">
-                  <p className="truncate text-xs text-muted-foreground">{tituloB}</p>
-                  <p className="font-semibold">{ebitdaB ? formatCurrency(ebitdaB) : "—"}</p>
-                </div>
-              </div>
+            }
+            status={{
+              label: snapshot.tipo === "whatif" ? "What-If" : "Comparação",
+              variant: snapshot.tipo === "whatif" ? "outline" : "secondary",
+            }}
+            footer={
               <Button variant="ghost" size="sm" className="w-full text-destructive" onClick={() => excluir(snapshot)}>
                 <Trash2 className="mr-1 h-4 w-4" />
                 Excluir cenário
               </Button>
-            </CardContent>
-          </Card>
+            }
+          >
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-[var(--radius-md)] bg-muted/40 p-2">
+                <p className="truncate text-xs text-muted-foreground">{tituloA}</p>
+                <p className="font-semibold">{ebitdaA ? formatCurrency(ebitdaA) : "—"}</p>
+              </div>
+              <div className="rounded-[var(--radius-md)] bg-muted/40 p-2">
+                <p className="truncate text-xs text-muted-foreground">{tituloB}</p>
+                <p className="font-semibold">{ebitdaB ? formatCurrency(ebitdaB) : "—"}</p>
+              </div>
+            </div>
+          </ScenarioCard>
         );
       })}
     </div>

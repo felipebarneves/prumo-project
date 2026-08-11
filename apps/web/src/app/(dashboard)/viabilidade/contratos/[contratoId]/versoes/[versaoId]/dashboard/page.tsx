@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { KpiCard } from "@/components/finance/kpi-card";
+import { MetricCard } from "@/components/finance/metric-card";
 import { AnnualBarChart } from "@/components/finance/annual-bar-chart";
 import { ErrorState, LoadingState } from "@/components/finance/states";
 import { formatCurrency, formatMonth, formatPercent } from "@/lib/format";
@@ -28,16 +28,16 @@ export default function DashboardProjetoPage() {
       {!loading && !error && data ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <KpiCard label="Receita Bruta Total" value={formatCurrency(data.kpis.receita_bruta_total)} />
-            <KpiCard label="EBITDA Total" value={formatCurrency(data.kpis.ebitda_total)} secondary={`Margem ${formatPercent(data.kpis.margem_ebitda)}`} />
-            <KpiCard label="Fluxo Líquido Total" value={formatCurrency(data.kpis.fluxo_liquido_total)} />
-            <KpiCard label="Capital de Giro" value={formatCurrency(data.kpis.capital_de_giro)} />
-            <KpiCard label="Custo Financeiro Total" value={formatCurrency(data.kpis.custo_financeiro_total)} />
-            <KpiCard label="VPL" value={data.kpis.vpl ? formatCurrency(data.kpis.vpl) : "—"} />
-            <KpiCard label="TIR" value={data.kpis.tir ? formatPercent(data.kpis.tir) : "—"} />
-            <KpiCard label="TIRM" value={data.kpis.tirm ? formatPercent(data.kpis.tirm) : "—"} />
-            <KpiCard label="Payback" value={data.kpis.payback_mes ? formatMonth(data.kpis.payback_mes) : "—"} />
-            <KpiCard label="Breakeven" value={data.kpis.breakeven_mes ? formatMonth(data.kpis.breakeven_mes) : "—"} secondary="Ponto de equilíbrio" />
+            <MetricCard label="Receita Bruta Total" value={formatCurrency(data.kpis.receita_bruta_total)} />
+            <MetricCard label="EBITDA Total" value={formatCurrency(data.kpis.ebitda_total)} secondary={`Margem ${formatPercent(data.kpis.margem_ebitda)}`} />
+            <MetricCard label="Fluxo Líquido Total" value={formatCurrency(data.kpis.fluxo_liquido_total)} />
+            <MetricCard label="Capital de Giro" value={formatCurrency(data.kpis.capital_de_giro)} />
+            <MetricCard label="Custo Financeiro Total" value={formatCurrency(data.kpis.custo_financeiro_total)} />
+            <MetricCard label="VPL" value={data.kpis.vpl ? formatCurrency(data.kpis.vpl) : "—"} />
+            <MetricCard label="TIR" value={data.kpis.tir ? formatPercent(data.kpis.tir) : "—"} />
+            <MetricCard label="TIRM" value={data.kpis.tirm ? formatPercent(data.kpis.tirm) : "—"} />
+            <MetricCard label="Payback" value={data.kpis.payback_mes ? formatMonth(data.kpis.payback_mes) : "—"} />
+            <MetricCard label="Breakeven" value={data.kpis.breakeven_mes ? formatMonth(data.kpis.breakeven_mes) : "—"} secondary="Ponto de equilíbrio" />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
