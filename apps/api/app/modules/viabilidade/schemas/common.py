@@ -25,7 +25,19 @@ class RegimeTributario(str, Enum):
 
 
 class StatusCicloVida(str, Enum):
+    """Pipeline de status editável na Tela 1 (Projetos). `CONTRATO_ASSINADO`/
+    `EM_EXECUCAO`/`ENCERRADO` são mantidos apenas para não invalidar linhas
+    já persistidas com esses valores (Postgres ENUM não permite remover
+    valores) — não são mais oferecidos como opção na UI, que agora usa o
+    funil comercial abaixo."""
+
     EM_PROSPECCAO = "em_prospeccao"
+    EM_ELABORACAO = "em_elaboracao"
+    PROPOSTA_ENVIADA = "proposta_enviada"
+    EM_NEGOCIACAO = "em_negociacao"
+    APROVADO_FECHADO = "aprovado_fechado"
+    PERDIDO_CANCELADO = "perdido_cancelado"
+    # Legado — pré-existentes na migration 00003, preservados por compatibilidade.
     CONTRATO_ASSINADO = "contrato_assinado"
     EM_EXECUCAO = "em_execucao"
     ENCERRADO = "encerrado"

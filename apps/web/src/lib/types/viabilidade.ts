@@ -12,6 +12,13 @@ export type OrganizationRole = "owner" | "executor" | "viewer";
 export type RegimeTributario = "lucro_presumido" | "lucro_real";
 export type StatusCicloVida =
   | "em_prospeccao"
+  | "em_elaboracao"
+  | "proposta_enviada"
+  | "em_negociacao"
+  | "aprovado_fechado"
+  | "perdido_cancelado"
+  // Legado — pré-existente, preservado só por compatibilidade com dados antigos (ver
+  // apps/api/app/modules/viabilidade/schemas/common.py, StatusCicloVida).
   | "contrato_assinado"
   | "em_execucao"
   | "encerrado"
@@ -140,6 +147,18 @@ export interface ContratoCreatePayload {
   prazo_pagamento_dias: PrazoPagamento;
   nome_versao: string;
   regime_tributario: RegimeTributario;
+  status_ciclo_vida?: StatusCicloVida;
+  codigo_interno?: string | null;
+  segmento_cliente_final?: string | null;
+}
+
+export interface ContratoUpdatePayload {
+  nome_projeto?: string;
+  cliente?: string;
+  data_inicio?: string;
+  duracao_meses?: number;
+  nome_contrato?: string;
+  prazo_pagamento_dias?: PrazoPagamento;
   status_ciclo_vida?: StatusCicloVida;
   codigo_interno?: string | null;
   segmento_cliente_final?: string | null;

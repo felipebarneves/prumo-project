@@ -8,6 +8,7 @@ import type {
   Contrato,
   ContratoCreatePayload,
   ContratoListResponse,
+  ContratoUpdatePayload,
   ConviteCreatePayload,
   ConviteCreateResponse,
   CronogramaResponse,
@@ -54,6 +55,9 @@ export const viabilidadeApi = {
 
   criarContrato: (payload: ContratoCreatePayload) =>
     apiRequest<Contrato>("/api/v1/contratos", { method: "POST", body: payload }),
+
+  atualizarContrato: (contratoId: string, payload: ContratoUpdatePayload) =>
+    apiRequest<Contrato>(`/api/v1/contratos/${contratoId}`, { method: "PATCH", body: payload }),
 
   arquivarContrato: (contratoId: string) =>
     apiRequest<{ contrato_id: string; modulos_afetados: ModuloPrumo[]; arquivado_em: string }>(

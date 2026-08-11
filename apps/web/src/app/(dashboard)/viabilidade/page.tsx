@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableRow } from "@/components/ui/table";
 import { TableContainer, TableHeaderGold } from "@/components/ui/table-container";
 import { EmptyState, ErrorState, LoadingState } from "@/components/finance/states";
@@ -15,19 +16,55 @@ import { formatDate } from "@/lib/format";
 import { useApiResource } from "@/lib/hooks/use-api-resource";
 import { viabilidadeApi } from "@/lib/api/viabilidade";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 import type { StatusCicloVida } from "@/lib/types/viabilidade";
+
+/** Funil comercial da Tela 1 — opções oferecidas na edição de status. Valores legados
+ * (contrato_assinado/em_execucao/encerrado/cancelado) não aparecem aqui: só existem no
+ * enum para não invalidar linhas antigas, mas não são mais um destino válido de edição. */
+const STATUS_OPCOES: { value: StatusCicloVida; label: string }[] = [
+  { value: "em_prospeccao", label: "Em prospecção" },
+  { value: "em_elaboracao", label: "Em elaboração" },
+  { value: "proposta_enviada", label: "Proposta enviada" },
+  { value: "em_negociacao", label: "Em negociação" },
+  { value: "aprovado_fechado", label: "Aprovado/Fechado" },
+  { value: "perdido_cancelado", label: "Perdido/Cancelado" },
+];
 
 const STATUS_LABELS: Record<StatusCicloVida, string> = {
   em_prospeccao: "Em prospecção",
+  em_elaboracao: "Em elaboração",
+  proposta_enviada: "Proposta enviada",
+  em_negociacao: "Em negociação",
+  aprovado_fechado: "Aprovado/Fechado",
+  perdido_cancelado: "Perdido/Cancelado",
+  // Legado — ver StatusCicloVida em lib/types/viabilidade.ts.
   contrato_assinado: "Contrato assinado",
   em_execucao: "Em execução",
   encerrado: "Encerrado",
   cancelado: "Cancelado",
 };
 
+/** Cor distinta por estágio do funil — cinza/azul nos estágios iniciais, dourado nos
+ * intermediários (proposta/negociação), verde no fechamento, vermelho na perda. Estados
+ * legados caem no cinza neutro (não são mais alcançáveis pela UI, só exibição de dados antigos). */
+const STATUS_CLASSES: Record<StatusCicloVida, string> = {
+  em_prospeccao: "border-slate-500/40 bg-slate-500/15 text-slate-300",
+  em_elaboracao: "border-sky-500/40 bg-sky-500/15 text-sky-400",
+  proposta_enviada: "border-primary/40 bg-primary/15 text-primary",
+  em_negociacao: "border-primary/60 bg-primary/25 text-primary",
+  aprovado_fechado: "border-emerald-500/40 bg-emerald-500/15 text-emerald-400",
+  perdido_cancelado: "border-destructive/40 bg-destructive/15 text-destructive",
+  contrato_assinado: "border-slate-500/40 bg-slate-500/15 text-slate-300",
+  em_execucao: "border-slate-500/40 bg-slate-500/15 text-slate-300",
+  encerrado: "border-slate-500/40 bg-slate-500/15 text-slate-300",
+  cancelado: "border-destructive/40 bg-destructive/15 text-destructive",
+};
+
 export default function ProjetosPage() {
   const [mostrarArquivados, setMostrarArquivados] = useState(false);
   const [dialogAberto, setDialogAberto] = useState(false);
+  const [salvandoStatusId, setSalvandoStatusId] = useState<string | null>(null);
 
   const { data, loading, error, refetch } = useApiResource(
     () =>
@@ -59,11 +96,26 @@ export default function ProjetosPage() {
     }
   }
 
+  async function handleAlterarStatus(contratoId: string, novoStatus: StatusCicloVida) {
+    setSalvandoStatusId(contratoId);
+    try {
+      await viabilidadeApi.atualizarContrato(contratoId, { status_ciclo_vida: novoStatus });
+      toast.success("Status do projeto atualizado.");
+      refetch();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível atualizar o status do projeto.");
+    } finally {
+      setSalvandoStatusId(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Cadastro e Consulta de Projetos</h1>
+          <h1 className="text-gold-gradient font-[var(--font-display)] text-2xl font-bold">
+            Cadastro e Consulta de Projetos
+          </h1>
           <p className="text-sm text-muted-foreground">
             Contratos mestre compartilhados entre Viabilidade, Precificação e Gestão.
           </p>
@@ -118,7 +170,28 @@ export default function ProjetosPage() {
                   </TableCell>
                   <TableCell>{contrato.cliente}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{STATUS_LABELS[contrato.status_ciclo_vida]}</Badge>
+                    <Select
+                      value={contrato.status_ciclo_vida}
+                      onValueChange={(v) => v && handleAlterarStatus(contrato.id, v as StatusCicloVida)}
+                    >
+                      <SelectTrigger
+                        size="sm"
+                        disabled={salvandoStatusId === contrato.id}
+                        className={cn(
+                          "rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                          STATUS_CLASSES[contrato.status_ciclo_vida]
+                        )}
+                      >
+                        <SelectValue>{STATUS_LABELS[contrato.status_ciclo_vida]}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPCOES.map((opcao) => (
+                          <SelectItem key={opcao.value} value={opcao.value}>
+                            {opcao.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
