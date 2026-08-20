@@ -75,7 +75,7 @@ export default function DashboardProjetoPage() {
                   categorias={data.grafico_fluxo_caixa_por_ano.map((s) => String(s.ano))}
                   series={[
                     { label: "Fluxo Anual", color: "bg-primary" },
-                    { label: "Caixa Acumulado", color: "bg-chart-3" },
+                    { label: "Caixa Acumulado", color: "bg-chart-3", tipo: "linha" },
                   ]}
                   valores={[
                     data.grafico_fluxo_caixa_por_ano.map((s) => Number(s.fluxo_anual)),
