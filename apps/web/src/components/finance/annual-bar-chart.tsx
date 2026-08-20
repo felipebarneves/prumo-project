@@ -47,8 +47,17 @@ interface AnnualBarChartProps {
  *
  * A curva de tendência (série com `destacarComLinha`) mapeia X no centro
  * exato da coluna do ano (viewBox com `categorias.length` unidades de
- * largura) e Y por `calcularY` — um único `<path>` contínuo em dourado, com
- * nós circulares destacados.
+ * largura) e Y por `calcularY` — um único `<path>` contínuo em dourado.
+ *
+ * IMPORTANTE: o viewBox do SVG é muito mais estreito em X (`categorias.length`
+ * unidades) do que em Y (`ALTURA_CONTAINER` px), então `preserveAspectRatio="none"`
+ * aplica uma escala NÃO UNIFORME (esticada em X). `vectorEffect="non-scaling-stroke"`
+ * corrige apenas a ESPESSURA do traço — não corrige a GEOMETRIA de formas com
+ * raio, como `<circle>`: um círculo desenhado dentro desse SVG vira uma barra/
+ * elipse dourada horizontal (era exatamente o "bloco dourado horizontal"
+ * relatado). Por isso os nós da curva são `<div>` HTML posicionados por
+ * percentual/px fora do SVG, não elementos SVG — e o SVG só contém linhas
+ * retas (grade e o path da curva), que não sofrem essa distorção.
  */
 const ALTURA_CONTAINER = 300;
 const ALTURA_RODAPE = 22;
@@ -116,16 +125,30 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
         </div>
 
         <div className="relative min-w-0 flex-1 overflow-visible" style={{ height: ALTURA_CONTAINER }}>
-          {/* Grade horizontal tracejada e sutil */}
-          {linhasGrade
-            .filter((v) => v !== 0)
-            .map((valor) => (
-              <div
-                key={valor}
-                className="absolute inset-x-0 border-t border-dashed border-border opacity-15"
-                style={{ top: calcularY(valor) }}
-              />
-            ))}
+          {/* Grade horizontal tracejada e sutil — linhas retas não sofrem distorção sob escala não uniforme, diferente de <circle>. */}
+          <svg
+            className="pointer-events-none absolute inset-0 text-muted-foreground"
+            width="100%"
+            height={ALTURA_CONTAINER}
+            viewBox={`0 0 ${numCategorias} ${ALTURA_CONTAINER}`}
+            preserveAspectRatio="none"
+          >
+            {linhasGrade
+              .filter((v) => v !== 0)
+              .map((valor) => (
+                <line
+                  key={valor}
+                  x1={0}
+                  y1={calcularY(valor)}
+                  x2={numCategorias}
+                  y2={calcularY(valor)}
+                  stroke="currentColor"
+                  strokeOpacity={0.15}
+                  strokeDasharray="4 4"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+          </svg>
 
           {/* Linha de zero — único traço contínuo cobrindo todo o gráfico */}
           <div className="absolute inset-x-0 border-t border-border" style={{ top: alturaPositiva }} />
@@ -209,8 +232,8 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
             ))}
           </div>
 
-          {/* Overlay SVG: um único path contínuo por série marcada com destacarComLinha, no centro da coluna do ano.
-              Nenhum outro <line>/<path> é desenhado aqui — grade e eixo de zero são divs, não SVG. */}
+          {/* Overlay SVG: apenas o path contínuo (linha reta entre pontos) por série marcada com destacarComLinha.
+              fill="none" obrigatório — sem isso o SVG tenta preencher a área fechada pelo path como um bloco sólido. */}
           {seriesComLinha.length > 0 ? (
             <svg
               className="pointer-events-none absolute inset-0 z-10"
@@ -227,32 +250,41 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
                 });
                 const pathD = pontos.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
                 return (
-                  <g key={serie.label}>
-                    <path
-                      d={pathD}
-                      fill="none"
-                      stroke={COR_LINHA_TENDENCIA}
-                      strokeWidth={2}
-                      strokeLinejoin="round"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                    {pontos.map((p, i) => (
-                      <circle
-                        key={i}
-                        cx={p.x}
-                        cy={p.y}
-                        r={4}
-                        fill={COR_LINHA_TENDENCIA}
-                        stroke="var(--color-background)"
-                        strokeWidth={1.5}
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    ))}
-                  </g>
+                  <path
+                    key={serie.label}
+                    d={pathD}
+                    fill="none"
+                    stroke={COR_LINHA_TENDENCIA}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
                 );
               })}
             </svg>
           ) : null}
+
+          {/* Nós da curva: <div> HTML posicionados por percentual/px, não <circle> SVG — evita a distorção
+              geométrica não uniforme do viewBox (ver comentário do componente). */}
+          {seriesComLinha.map((serie) => {
+            const serieIndex = series.indexOf(serie);
+            return categorias.map((categoria, categoriaIndex) => {
+              const valor = valores[serieIndex]?.[categoriaIndex] ?? 0;
+              const xPercent = ((categoriaIndex + 0.5) / numCategorias) * 100;
+              return (
+                <div
+                  key={`${serie.label}-${categoria}`}
+                  className="pointer-events-none absolute z-20 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                  style={{
+                    left: `${xPercent}%`,
+                    top: calcularY(valor),
+                    backgroundColor: "var(--color-background)",
+                    border: `2px solid ${COR_LINHA_TENDENCIA}`,
+                  }}
+                />
+              );
+            });
+          })}
         </div>
       </div>
 
