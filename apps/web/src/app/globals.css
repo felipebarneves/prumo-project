@@ -152,7 +152,6 @@
   --accent-foreground: var(--gold-1);
   --destructive: #e5484d;
   --destructive-foreground: var(--white);
-  --border: var(--border);
   --input: rgba(168, 180, 192, 0.16);
   --ring: var(--gold-1);
   --chart-1: var(--gold-1);

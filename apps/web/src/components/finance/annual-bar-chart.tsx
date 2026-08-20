@@ -33,19 +33,20 @@ interface AnnualBarChartProps {
  * bordas de cada categoria.
  *
  * Cada categoria é subdividida em `series.length` fatias iguais (via CSS
- * Grid, sem gap) e cada barra fica centralizada na sua fatia. O overlay SVG
- * de curva de tendência usa um viewBox com `categorias.length * series.length`
- * unidades, então o centro de cada fatia (`indiceGlobal + 0.5`) corresponde
- * exatamente ao centro da barra correspondente — sem depender de medir
- * pixels em runtime.
+ * Grid, sem gap) e cada barra fica centralizada na sua fatia.
+ *
+ * A curva de tendência (série com `destacarComLinha`) usa um sistema de
+ * coordenadas à parte: X é o centro exato da coluna do ano (não da fatia da
+ * barra individual — a curva atravessa o grupo de barras do ano, não uma
+ * barra específica) e Y é proporcional ao valor em relação à altura útil do
+ * plot, pela mesma `calcularY` usada para as barras. O overlay SVG usa um
+ * viewBox com `categorias.length` unidades de largura, então `indiceAno + 0.5`
+ * é sempre o centro da coluna, sem depender de medir pixels em runtime.
  */
 const ALTURA_CONTAINER = 380;
 const ALTURA_RODAPE = 24;
 const ALTURA_UTIL = ALTURA_CONTAINER - ALTURA_RODAPE;
-
-function corParaVariavelCss(colorClass: string): string {
-  return `var(--${colorClass.replace(/^bg-/, "color-")})`;
-}
+const COR_LINHA_TENDENCIA = "var(--gold-1)";
 
 export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartProps) {
   const [indiceHover, setIndiceHover] = useState<number | null>(null);
@@ -154,28 +155,43 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
           ))}
         </div>
 
-        {/* Overlay SVG: um único path contínuo por série marcada com destacarComLinha, conectando o topo de suas barras */}
+        {/* Overlay SVG: um único path contínuo por série marcada com destacarComLinha, no centro da coluna do ano */}
         {seriesComLinha.length > 0 ? (
           <svg
             className="pointer-events-none absolute inset-0 z-10"
             width="100%"
             height={ALTURA_CONTAINER}
-            viewBox={`0 0 ${numCategorias * numSeries} ${ALTURA_CONTAINER}`}
+            viewBox={`0 0 ${numCategorias} ${ALTURA_CONTAINER}`}
             preserveAspectRatio="none"
           >
             {seriesComLinha.map((serie) => {
               const serieIndex = series.indexOf(serie);
-              const cor = corParaVariavelCss(serie.color);
               const pontos = categorias.map((_, categoriaIndex) => {
                 const valor = valores[serieIndex]?.[categoriaIndex] ?? 0;
-                return { x: categoriaIndex * numSeries + serieIndex + 0.5, y: calcularY(valor) };
+                return { x: categoriaIndex + 0.5, y: calcularY(valor) };
               });
               const pathD = pontos.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
               return (
                 <g key={serie.label}>
-                  <path d={pathD} fill="none" stroke={cor} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                  <path
+                    d={pathD}
+                    fill="none"
+                    stroke={COR_LINHA_TENDENCIA}
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
                   {pontos.map((p, i) => (
-                    <circle key={i} cx={p.x} cy={p.y} r={3} fill={cor} vectorEffect="non-scaling-stroke" />
+                    <circle
+                      key={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r={4}
+                      fill={COR_LINHA_TENDENCIA}
+                      stroke="var(--color-background)"
+                      strokeWidth={1.5}
+                      vectorEffect="non-scaling-stroke"
+                    />
                   ))}
                 </g>
               );
@@ -185,13 +201,22 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
       </div>
 
       <div className="flex flex-wrap gap-4">
-        {series.map((serie) => (
-          <div key={serie.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className={`h-2 w-2 rounded-full ${serie.color}`} />
-            {serie.label}
-            {serie.destacarComLinha ? <span className="ml-0.5 text-[0.65rem] text-muted-foreground/70">(tendência)</span> : null}
-          </div>
-        ))}
+        {series.map((serie) =>
+          serie.destacarComLinha ? (
+            <div key={serie.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <svg width="20" height="8" className="shrink-0">
+                <line x1={0} y1={4} x2={20} y2={4} stroke={COR_LINHA_TENDENCIA} strokeWidth={2} />
+                <circle cx={10} cy={4} r={3} fill={COR_LINHA_TENDENCIA} />
+              </svg>
+              {serie.label}
+            </div>
+          ) : (
+            <div key={serie.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className={`h-2 w-2 rounded-full ${serie.color}`} />
+              {serie.label}
+            </div>
+          ),
+        )}
       </div>
     </div>
   );
