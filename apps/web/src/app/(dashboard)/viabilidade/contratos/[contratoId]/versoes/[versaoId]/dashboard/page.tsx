@@ -44,12 +44,12 @@ export default function DashboardProjetoPage() {
             <MetricCard label="Breakeven" value={data.kpis.breakeven_mes ? formatMonth(data.kpis.breakeven_mes) : "—"} secondary="Ponto de equilíbrio" />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
+          <div className="grid gap-4 overflow-visible lg:grid-cols-2">
+            <Card className="overflow-visible">
               <CardHeader>
                 <CardTitle className="text-base">DRE por Ano</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-visible">
                 <AnnualBarChart
                   categorias={data.grafico_dre_por_ano.map((s) => String(s.ano))}
                   series={[
@@ -66,16 +66,16 @@ export default function DashboardProjetoPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="overflow-visible">
               <CardHeader>
                 <CardTitle className="text-base">Fluxo de Caixa por Ano</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-visible">
                 <AnnualBarChart
                   categorias={data.grafico_fluxo_caixa_por_ano.map((s) => String(s.ano))}
                   series={[
                     { label: "Fluxo Anual", color: "bg-primary" },
-                    { label: "Caixa Acumulado", color: "bg-chart-3", tipo: "linha" },
+                    { label: "Caixa Acumulado", color: "bg-chart-3", destacarComLinha: true },
                   ]}
                   valores={[
                     data.grafico_fluxo_caixa_por_ano.map((s) => Number(s.fluxo_anual)),

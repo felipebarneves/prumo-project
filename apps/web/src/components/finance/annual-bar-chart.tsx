@@ -7,8 +7,8 @@ import { formatCurrency } from "@/lib/format";
 interface Serie {
   label: string;
   color: string;
-  /** "linha" renderiza a série como curva de tendência (SVG overlay) em vez de barra — para acumulados. */
-  tipo?: "barra" | "linha";
+  /** Além de renderizar como barra, sobrepõe uma curva de tendência (SVG) conectando o topo das barras desta série — para acumulados. */
+  destacarComLinha?: boolean;
 }
 
 interface AnnualBarChartProps {
@@ -19,25 +19,28 @@ interface AnnualBarChartProps {
 }
 
 /**
- * Gráfico de barras agrupadas + linha de tendência opcional, sem dependência
- * de biblioteca de charting (PRD 3.7 aceita visão estática sem drill-down
- * como suficiente para o MVP).
+ * Gráfico de barras agrupadas, com curva de tendência opcional sobreposta,
+ * sem dependência de biblioteca de charting (PRD 3.7 aceita visão estática
+ * sem drill-down como suficiente para o MVP).
  *
  * Layout vertical de cada coluna, de cima para baixo: zona positiva (altura
- * `alturaPositiva`) → rodapé fixo (`ALTURA_RODAPE`, contém a linha de zero e
- * o rótulo do ano) → zona negativa (altura `alturaNegativa`). As três alturas
- * são globais (mesmas para todas as colunas), calculadas uma vez a partir do
- * maior valor positivo e do maior |valor negativo| de toda a série — é o que
- * garante uma única linha de zero alinhada no gráfico inteiro. O rótulo do
- * ano fica sempre no rodapé, nunca atrás das barras.
+ * `alturaPositiva`) → rodapé fixo (`ALTURA_RODAPE`, contém o rótulo do ano) →
+ * zona negativa (altura `alturaNegativa`). As três alturas são globais
+ * (mesmas para todas as colunas), calculadas uma vez a partir do maior valor
+ * positivo e do maior |valor negativo| de toda a série. A linha de zero é um
+ * único elemento absoluto cobrindo a largura inteira do gráfico — desenhá-la
+ * por coluna (uma borda por div) produzia traços pretos fragmentados nas
+ * bordas de cada categoria.
  *
- * As colunas usam CSS Grid com colunas de largura igual e `gap-0` (o
- * espaçamento visual vem de padding interno, não de gap) para que o overlay
- * SVG da linha de tendência — cujo viewBox usa 1 unidade por coluna — alinhe
- * seus pontos exatamente ao centro de cada coluna sem medir pixels via JS.
+ * Cada categoria é subdividida em `series.length` fatias iguais (via CSS
+ * Grid, sem gap) e cada barra fica centralizada na sua fatia. O overlay SVG
+ * de curva de tendência usa um viewBox com `categorias.length * series.length`
+ * unidades, então o centro de cada fatia (`indiceGlobal + 0.5`) corresponde
+ * exatamente ao centro da barra correspondente — sem depender de medir
+ * pixels em runtime.
  */
-const ALTURA_CONTAINER = 180;
-const ALTURA_RODAPE = 22;
+const ALTURA_CONTAINER = 380;
+const ALTURA_RODAPE = 24;
 const ALTURA_UTIL = ALTURA_CONTAINER - ALTURA_RODAPE;
 
 function corParaVariavelCss(colorClass: string): string {
@@ -47,8 +50,8 @@ function corParaVariavelCss(colorClass: string): string {
 export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartProps) {
   const [indiceHover, setIndiceHover] = useState<number | null>(null);
 
-  const seriesBarra = series.filter((s) => s.tipo !== "linha");
-  const seriesLinha = series.filter((s) => s.tipo === "linha");
+  const numSeries = Math.max(series.length, 1);
+  const numCategorias = Math.max(categorias.length, 1);
 
   const todosValores = valores.flat();
   const maximoPositivo = Math.max(0, ...todosValores);
@@ -58,47 +61,50 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
   const alturaPositiva = (maximoPositivo / amplitude) * ALTURA_UTIL;
   const alturaNegativa = ALTURA_UTIL - alturaPositiva;
 
-  /** Posição Y (em px, a partir do topo da coluna) de um valor no eixo do gráfico. */
+  /** Posição Y (em px, a partir do topo da coluna) de um valor no eixo do gráfico — também o topo da barra. */
   const calcularY = (valor: number) =>
     valor >= 0
       ? alturaPositiva - (valor / amplitude) * ALTURA_UTIL
       : alturaPositiva + ALTURA_RODAPE + (-valor / amplitude) * ALTURA_UTIL;
 
+  const seriesComLinha = series.filter((s) => s.destacarComLinha);
+
   return (
-    <div className="space-y-3">
-      <div className="relative" style={{ height: ALTURA_CONTAINER }}>
+    <div className="space-y-3 overflow-visible">
+      <div className="relative min-h-[380px] overflow-visible" style={{ height: ALTURA_CONTAINER }}>
+        {/* Linha de zero — um único traço contínuo cobrindo todo o gráfico */}
+        <div className="absolute inset-x-0 border-t border-border" style={{ top: alturaPositiva }} />
+
         <div
-          className="grid h-full"
-          style={{ gridTemplateColumns: `repeat(${Math.max(categorias.length, 1)}, minmax(0, 1fr))` }}
+          className="grid h-full overflow-visible"
+          style={{ gridTemplateColumns: `repeat(${numCategorias}, minmax(0, 1fr))` }}
         >
           {categorias.map((categoria, categoriaIndex) => (
             <div
               key={categoria}
-              className="relative"
+              className="relative overflow-visible"
               onMouseEnter={() => setIndiceHover(categoriaIndex)}
               onMouseLeave={() => setIndiceHover((atual) => (atual === categoriaIndex ? null : atual))}
             >
               {/* Zona positiva */}
               <div
-                className="absolute inset-x-0 flex items-end justify-center gap-1 px-1"
-                style={{ top: 0, height: alturaPositiva }}
+                className="absolute inset-x-0 grid items-end"
+                style={{ top: 0, height: alturaPositiva, gridTemplateColumns: `repeat(${numSeries}, 1fr)` }}
               >
-                {seriesBarra.map((serie) => {
-                  const valor = valores[series.indexOf(serie)]?.[categoriaIndex] ?? 0;
+                {series.map((serie, serieIndex) => {
+                  const valor = valores[serieIndex]?.[categoriaIndex] ?? 0;
                   const altura = valor > 0 ? alturaPositiva - calcularY(valor) : 0;
                   return (
-                    <div
-                      key={serie.label}
-                      className={`w-4 rounded-t-sm ${serie.color}`}
-                      style={{ height: altura }}
-                    />
+                    <div key={serie.label} className="flex justify-center">
+                      <div className={`w-4 rounded-t-sm ${serie.color}`} style={{ height: altura }} />
+                    </div>
                   );
                 })}
               </div>
 
-              {/* Rodapé: linha de zero + rótulo do ano */}
+              {/* Rodapé: rótulo do ano (linha de zero é desenhada uma única vez fora do loop) */}
               <div
-                className="absolute inset-x-0 flex items-center justify-center border-t border-border"
+                className="absolute inset-x-0 flex items-center justify-center"
                 style={{ top: alturaPositiva, height: ALTURA_RODAPE }}
               >
                 <span className="font-mono text-[0.65rem] text-muted-foreground">{categoria}</span>
@@ -106,30 +112,32 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
 
               {/* Zona negativa */}
               <div
-                className="absolute inset-x-0 flex items-start justify-center gap-1 px-1"
-                style={{ top: alturaPositiva + ALTURA_RODAPE, height: alturaNegativa }}
+                className="absolute inset-x-0 grid items-start"
+                style={{
+                  top: alturaPositiva + ALTURA_RODAPE,
+                  height: alturaNegativa,
+                  gridTemplateColumns: `repeat(${numSeries}, 1fr)`,
+                }}
               >
-                {seriesBarra.map((serie) => {
-                  const valor = valores[series.indexOf(serie)]?.[categoriaIndex] ?? 0;
+                {series.map((serie, serieIndex) => {
+                  const valor = valores[serieIndex]?.[categoriaIndex] ?? 0;
                   const altura = valor < 0 ? calcularY(valor) - (alturaPositiva + ALTURA_RODAPE) : 0;
                   return (
-                    <div
-                      key={serie.label}
-                      className={`w-4 rounded-b-sm opacity-60 ${serie.color}`}
-                      style={{ height: altura }}
-                    />
+                    <div key={serie.label} className="flex justify-center">
+                      <div className={`w-4 rounded-b-sm opacity-60 ${serie.color}`} style={{ height: altura }} />
+                    </div>
                   );
                 })}
               </div>
 
               {/* Tooltip do ano */}
               {indiceHover === categoriaIndex ? (
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center">
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center overflow-visible">
                   <div className="-translate-y-full rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
                     <p className="mb-1 font-semibold">{categoria}</p>
                     <div className="space-y-0.5">
-                      {series.map((serie) => {
-                        const valor = valores[series.indexOf(serie)]?.[categoriaIndex] ?? 0;
+                      {series.map((serie, serieIndex) => {
+                        const valor = valores[serieIndex]?.[categoriaIndex] ?? 0;
                         return (
                           <div key={serie.label} className="flex items-center gap-2 whitespace-nowrap">
                             <span className={`h-2 w-2 rounded-full ${serie.color}`} />
@@ -146,20 +154,21 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
           ))}
         </div>
 
-        {/* Overlay SVG: curva(s) de tendência para séries do tipo "linha" */}
-        {seriesLinha.length > 0 ? (
+        {/* Overlay SVG: um único path contínuo por série marcada com destacarComLinha, conectando o topo de suas barras */}
+        {seriesComLinha.length > 0 ? (
           <svg
-            className="pointer-events-none absolute inset-0"
+            className="pointer-events-none absolute inset-0 z-10"
             width="100%"
             height={ALTURA_CONTAINER}
-            viewBox={`0 0 ${Math.max(categorias.length, 1)} ${ALTURA_CONTAINER}`}
+            viewBox={`0 0 ${numCategorias * numSeries} ${ALTURA_CONTAINER}`}
             preserveAspectRatio="none"
           >
-            {seriesLinha.map((serie) => {
+            {seriesComLinha.map((serie) => {
+              const serieIndex = series.indexOf(serie);
               const cor = corParaVariavelCss(serie.color);
               const pontos = categorias.map((_, categoriaIndex) => {
-                const valor = valores[series.indexOf(serie)]?.[categoriaIndex] ?? 0;
-                return { x: categoriaIndex + 0.5, y: calcularY(valor) };
+                const valor = valores[serieIndex]?.[categoriaIndex] ?? 0;
+                return { x: categoriaIndex * numSeries + serieIndex + 0.5, y: calcularY(valor) };
               });
               const pathD = pontos.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
               return (
@@ -178,12 +187,9 @@ export function AnnualBarChart({ categorias, series, valores }: AnnualBarChartPr
       <div className="flex flex-wrap gap-4">
         {series.map((serie) => (
           <div key={serie.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            {serie.tipo === "linha" ? (
-              <span className={`h-0.5 w-3 rounded-full ${serie.color}`} />
-            ) : (
-              <span className={`h-2 w-2 rounded-full ${serie.color}`} />
-            )}
+            <span className={`h-2 w-2 rounded-full ${serie.color}`} />
             {serie.label}
+            {serie.destacarComLinha ? <span className="ml-0.5 text-[0.65rem] text-muted-foreground/70">(tendência)</span> : null}
           </div>
         ))}
       </div>
