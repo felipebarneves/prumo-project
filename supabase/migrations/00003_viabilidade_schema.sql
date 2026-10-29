@@ -29,7 +29,7 @@ INSERT INTO public.plan_capacities (tier, max_executors, max_viewers, max_active
     ('starter', 1, 2, 5),
     ('pro_planejamento', 2, 3, 12),
     ('pro_execucao', 2, 4, 15),
-    ('master', 3, 7, 25);
+    ('master', 3, 7, 25)
 ON CONFLICT (tier) DO NOTHING;
 
 ALTER TABLE public.organizations
